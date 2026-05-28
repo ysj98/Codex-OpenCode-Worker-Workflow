@@ -1,6 +1,12 @@
 {
-  "model": "deepseek/deepseek-v4-pro",
+  "defaultModelProfile": "deepseek-v4-pro",
+  "modelProfiles": {
+    "deepseek-v4-pro": {
+      "model": "deepseek/deepseek-v4-pro",
+      "description": "Default model profile for this workflow. Change this model id after confirming it with `opencode models`."
+    }
+  },
   "agent": "codex-worker",
-  "runsRoot": "C:\\Users\\yshij\\.codex\\runs\\codex-opencode-deepseek-workflow",
-  "worktreesRoot": "C:\\Users\\yshij\\.codex\\worktrees"
+  "runsRoot": "",
+  "worktreesRoot": ""
 }

@@ -9,6 +9,7 @@ param(
   [string]$ExistingWorktreePath,
   [string]$SessionId,
   [string]$TaskSlug,
+  [string]$ModelProfile,
   [string]$Model,
   [string]$Agent,
   [string]$RunsRoot,
@@ -54,6 +55,35 @@ function Get-JsonField {
   return $Default
 }
 
+function Get-JsonObjectField {
+  param($Object, [string]$Name)
+  if ($null -eq $Object) { return $null }
+  $property = $Object.PSObject.Properties | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+  if ($null -eq $property) { return $null }
+  return $property.Value
+}
+
+function Get-ModelFromProfile {
+  param($Config, [string]$Name, [string]$ConfigPath)
+  $profiles = Get-JsonObjectField -Object $Config -Name 'modelProfiles'
+  if ($null -eq $profiles) {
+    throw "Model profile '$Name' was requested, but worker.config.json does not define modelProfiles."
+  }
+
+  $profile = Get-JsonObjectField -Object $profiles -Name $Name
+  if ($null -eq $profile) {
+    $available = @($profiles.PSObject.Properties.Name) -join ', '
+    if ([string]::IsNullOrWhiteSpace($available)) { $available = '(none)' }
+    throw "Model profile '$Name' was not found in $ConfigPath. Available profiles: $available"
+  }
+
+  $profileModel = Get-JsonField -Object $profile -Name 'model' -Default ''
+  if ([string]::IsNullOrWhiteSpace($profileModel)) {
+    throw "Model profile '$Name' in $ConfigPath does not define a model."
+  }
+  return $profileModel
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $skillRoot = Resolve-Path -LiteralPath (Join-Path $scriptRoot '..')
 $configPath = Join-Path $skillRoot.Path 'worker.config.json'
@@ -62,7 +92,27 @@ if (Test-Path -LiteralPath $configPath) {
   $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
 }
 
-if ([string]::IsNullOrWhiteSpace($Model)) { $Model = Get-JsonField -Object $config -Name 'model' -Default 'deepseek/deepseek-v4-pro' }
+if ([string]::IsNullOrWhiteSpace($Model)) {
+  $Model = [Environment]::GetEnvironmentVariable('CODEX_OPENCODE_MODEL')
+}
+
+$resolvedModelProfile = $null
+if ([string]::IsNullOrWhiteSpace($Model)) {
+  if ([string]::IsNullOrWhiteSpace($ModelProfile)) {
+    $ModelProfile = [Environment]::GetEnvironmentVariable('CODEX_OPENCODE_MODEL_PROFILE')
+  }
+  if ([string]::IsNullOrWhiteSpace($ModelProfile)) {
+    $ModelProfile = Get-JsonField -Object $config -Name 'defaultModelProfile' -Default ''
+  }
+  if (-not [string]::IsNullOrWhiteSpace($ModelProfile)) {
+    $Model = Get-ModelFromProfile -Config $config -Name $ModelProfile -ConfigPath $configPath
+    $resolvedModelProfile = $ModelProfile
+  }
+}
+
+if ([string]::IsNullOrWhiteSpace($Model)) {
+  throw "No OpenCode model configured. Pass -Model, set CODEX_OPENCODE_MODEL, pass -ModelProfile, set CODEX_OPENCODE_MODEL_PROFILE, or configure defaultModelProfile in worker.config.json."
+}
 if ([string]::IsNullOrWhiteSpace($Agent)) { $Agent = Get-JsonField -Object $config -Name 'agent' -Default 'codex-worker' }
 if ([string]::IsNullOrWhiteSpace($RunsRoot)) { $RunsRoot = Get-JsonField -Object $config -Name 'runsRoot' -Default (Join-Path $HOME '.codex\runs\codex-opencode-deepseek-workflow') }
 if ([string]::IsNullOrWhiteSpace($WorktreesRoot)) { $WorktreesRoot = Get-JsonField -Object $config -Name 'worktreesRoot' -Default (Join-Path $HOME '.codex\worktrees') }
@@ -99,7 +149,7 @@ if ($ExistingWorktreePath) {
   if (Test-Path -LiteralPath $worktree) {
     throw "Worktree path already exists: $worktree"
   }
-  $branch = "codex/deepseek-$taskId"
+  $branch = "codex/opencode-$taskId"
   Invoke-Git -WorkingDirectory $sourceRoot -Arguments @('worktree', 'add', '-b', $branch, $worktree, 'HEAD') | Out-Null
 }
 
@@ -114,7 +164,7 @@ if ($FindingsFile) {
 }
 
 $prompt = @"
-You are the DeepSeek V4 implementation worker in a Codex-controlled workflow.
+You are the implementation worker using the configured OpenCode model in a Codex-controlled workflow.
 
 Use the attached AI development task order as the complete implementation contract.
 Modify code only in the current worktree.
@@ -136,7 +186,7 @@ if (-not $PrepareOnly) {
     '--agent', $Agent,
     '--model', $Model,
     '--format', 'json',
-    '--title', "Codex DeepSeek $taskId",
+    '--title', "Codex OpenCode $taskId",
     '--file', $taskCopy
   )
   if ($findingsCopy) { $args += @('--file', $findingsCopy) }
@@ -168,6 +218,7 @@ $summary = [pscustomobject]@{
   runDir = $runDir
   taskFile = $taskCopy
   findingsFile = $findingsCopy
+  modelProfile = $resolvedModelProfile
   model = $Model
   agent = $Agent
   prepareOnly = [bool]$PrepareOnly

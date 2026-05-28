@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)]
   [string]$RepoPath,
 
@@ -47,53 +47,50 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $content = @"
-# AI Development Task Order
+# AI 开发任务单
 
-> Codex should replace the English helper labels below with the required task
-> order section titles from the skill instructions before handing the task order
-> to OpenCode.
-
-## Task Goal
+## 任务目标
 
 $Title
 
-## Current Project Context
+## 当前项目背景
 
-- Repository path: $root
-- Project type:
-- Related modules:
+- 仓库路径：$root
+- 项目类型：
+- 相关模块：
 
-## Required Project Rules
+## 必须遵守的项目规则
 
-- Read and follow this repository's AGENTS.md, README, manifests, and documentation sync rules.
-- Do not modify files unrelated to the task.
+- 读取并遵守当前仓库的 AGENTS.md、README、manifest、脚本和文档同步规则。
+- 不修改与任务无关的文件。
 
-## Allowed Write Scope
-
-- 
-
-## Forbidden Actions
-
-- Do not run git add / commit / merge / push / reset.
-- Do not create pull requests.
-- Do not rewrite unauthorized user files.
-- Do not do out-of-scope refactors.
-
-## Implementation Requirements
+## 允许修改范围
 
 - 
 
-## Acceptance Criteria
+## 禁止事项
+
+- 不运行 git add / commit / merge / push / reset。
+- 不创建 PR。
+- 不重写未授权的用户文件。
+- 不做超出任务范围的重构。
+- 不读取、输出或保存 API Key。
+
+## 实现要求
 
 - 
 
-## Suggested Verification Commands
+## 验收标准
 
 - 
 
-## Deliverables
+## 建议验证命令
 
-- Leave an unstaged diff for Codex review and final user confirmation.
+- 
+
+## 交付物要求
+
+- 在隔离 worktree 中留下未暂存 diff，供 Codex 审查和用户最终确认。
 "@
 
 Set-Content -LiteralPath $OutputPath -Value $content -Encoding UTF8
