@@ -1,0 +1,7 @@
+interface:
+  display_name: "Codex + OpenCode + DeepSeek"
+  short_description: "Explicit workflow for Codex planning, OpenCode execution, and Codex diff review."
+  default_prompt: "Use $codex-opencode-deepseek-workflow to create an AI development task order, run OpenCode with DeepSeek V4, and review the resulting git diff."
+
+policy:
+  allow_implicit_invocation: false

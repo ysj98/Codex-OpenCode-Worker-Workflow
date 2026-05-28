@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Codex CLI + OpenCode + DeepSeek V4 通用 AI 开发协作工作流：Codex 负责任务单和 diff 审查，DeepSeek 负责代码执行，用户负责运行确认和 Git 提交。"
+    />
+    <title>Codex OpenCode DeepSeek Workflow</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050b16;
+        --bg-2: #071426;
+        --surface: rgba(12, 25, 44, 0.78);
+        --surface-strong: rgba(16, 35, 61, 0.92);
+        --surface-soft: rgba(255, 255, 255, 0.045);
+        --text: #f1f7ff;
+        --muted: #afc0d7;
+        --subtle: #7f93ad;
+        --line: rgba(159, 180, 210, 0.22);
+        --line-strong: rgba(98, 214, 255, 0.38);
+        --primary: #67e8f9;
+        --primary-strong: #38bdf8;
+        --accent: #a7f3d0;
+        --warning: #facc15;
+        --danger: #fb7185;
+        --shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        line-height: 1.65;
+        background:
+          radial-gradient(circle at 14% 8%, rgba(56, 189, 248, 0.22), transparent 34rem),
+          radial-gradient(circle at 82% 4%, rgba(167, 243, 208, 0.16), transparent 30rem),
+          radial-gradient(circle at 70% 72%, rgba(129, 140, 248, 0.12), transparent 32rem),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 48%, var(--bg) 100%);
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        content: "";
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: linear-gradient(to bottom, black 0%, transparent 78%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1160px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid var(--line);
+        background: rgba(5, 11, 22, 0.74);
+        backdrop-filter: blur(18px);
+      }
+
+      .nav-inner {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text);
+        font-weight: 850;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #06101f;
+        font-weight: 950;
+        box-shadow: 0 14px 36px rgba(56, 189, 248, 0.24);
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .nav-links a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+      }
+
+      .nav-links a:hover,
+      .nav-links a:focus-visible {
+        color: var(--text);
+      }
+
+      .hero {
+        padding: 90px 0 58px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+        gap: 42px;
+        align-items: center;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 38px;
+        padding: 0 14px;
+        border: 1px solid rgba(103, 232, 249, 0.3);
+        border-radius: 999px;
+        background: rgba(103, 232, 249, 0.08);
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .eyebrow::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 22px var(--accent);
+        content: "";
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+      }
+
+      h1 {
+        max-width: 840px;
+        margin-top: 24px;
+        font-size: clamp(44px, 7vw, 84px);
+      }
+
+      h2 {
+        font-size: clamp(30px, 4vw, 50px);
+      }
+
+      h3 {
+        font-size: 21px;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .lead {
+        max-width: 720px;
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: clamp(18px, 2vw, 21px);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 32px;
+      }
+
+      .button {
+        min-height: 50px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 20px;
+        border-radius: 999px;
+        font-weight: 850;
+        text-decoration: none;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease;
+      }
+
+      .button-primary {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #06101f;
+        box-shadow: 0 18px 48px rgba(56, 189, 248, 0.24);
+      }
+
+      .button-secondary {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--text);
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        transform: translateY(-2px);
+      }
+
+      .button:focus-visible,
+      a:focus-visible {
+        outline: 3px solid rgba(103, 232, 249, 0.5);
+        outline-offset: 3px;
+      }
+
+      .hero-panel,
+      .card,
+      .panel,
+      .usage-card,
+      .command-card,
+      .cta {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .hero-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius-xl);
+      }
+
+      .hero-panel::before {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        content: "";
+        background:
+          linear-gradient(135deg, rgba(103, 232, 249, 0.14), transparent 38%),
+          radial-gradient(circle at 85% 12%, rgba(167, 243, 208, 0.16), transparent 12rem);
+      }
+
+      .terminal-bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--danger);
+      }
+
+      .dot:nth-child(2) {
+        background: var(--warning);
+      }
+
+      .dot:nth-child(3) {
+        background: var(--accent);
+      }
+
+      .terminal-label {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      pre {
+        position: relative;
+        margin: 0;
+        padding: 22px;
+        overflow-x: auto;
+        color: #deecff;
+        font-size: 14px;
+        line-height: 1.75;
+      }
+
+      code {
+        font-family:
+          "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .metric {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .metric span {
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      .section {
+        padding: 70px 0;
+      }
+
+      .section-head {
+        max-width: 780px;
+        margin-bottom: 30px;
+      }
+
+      .section-head.center {
+        margin-right: auto;
+        margin-left: auto;
+        text-align: center;
+      }
+
+      .section-head p {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        min-height: 228px;
+        padding: 24px;
+        border-radius: var(--radius-lg);
+      }
+
+      .card p,
+      .step p,
+      .usage-card p,
+      .panel p {
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        margin-bottom: 18px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(103, 232, 249, 0.1);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .tag.accent {
+        background: rgba(167, 243, 208, 0.1);
+        color: var(--accent);
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .step {
+        position: relative;
+        min-height: 220px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: var(--surface-strong);
+      }
+
+      .number {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 16px;
+        border-radius: 14px;
+        background: rgba(167, 243, 208, 0.12);
+        color: var(--accent);
+        font-weight: 950;
+      }
+
+      .usage-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .usage-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .usage-card {
+        padding: 22px;
+        border-radius: var(--radius-lg);
+      }
+
+      .usage-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .usage-index {
+        width: 30px;
+        height: 30px;
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        border-radius: 10px;
+        background: rgba(103, 232, 249, 0.12);
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .usage-card p {
+        margin-top: 12px;
+      }
+
+      .command-card {
+        overflow: hidden;
+        border-radius: var(--radius-xl);
+      }
+
+      .command-card + .command-card {
+        margin-top: 16px;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .panel {
+        padding: 28px;
+        border-radius: var(--radius-xl);
+      }
+
+      .checklist {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checklist li {
+        position: relative;
+        padding: 15px 16px 15px 44px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+      }
+
+      .checklist li::before {
+        position: absolute;
+        top: 17px;
+        left: 17px;
+        width: 14px;
+        height: 14px;
+        border: 1px solid rgba(167, 243, 208, 0.6);
+        border-radius: 999px;
+        background: rgba(167, 243, 208, 0.13);
+        content: "";
+      }
+
+      .cta {
+        padding: 44px;
+        border-color: rgba(103, 232, 249, 0.34);
+        border-radius: 34px;
+        background:
+          linear-gradient(135deg, rgba(103, 232, 249, 0.16), rgba(167, 243, 208, 0.08)),
+          var(--surface);
+      }
+
+      .footer {
+        padding: 42px 0;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (max-width: 980px) {
+        .hero-grid,
+        .usage-grid,
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        .cards,
+        .workflow {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .nav-links {
+          display: none;
+        }
+
+        .hero {
+          padding-top: 58px;
+        }
+
+        .cards,
+        .workflow,
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .section {
+          padding: 52px 0;
+        }
+
+        .cta {
+          padding: 28px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="#top" aria-label="返回首页">
+          <span class="brand-mark">CD</span>
+          <span>Codex DeepSeek Workflow</span>
+        </a>
+        <nav class="nav-links" aria-label="主导航">
+          <a href="#roles">角色分工</a>
+          <a href="#workflow">流程</a>
+          <a href="#usage">使用方式</a>
+          <a href="#install">安装</a>
+          <a href="https://github.com/ysj98/codex-opencode-deepseek-workflow">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="shell hero-grid">
+          <div>
+            <span class="eyebrow">Codex CLI + OpenCode + DeepSeek V4</span>
+            <h1>把 AI 编码拆成计划、执行和审查三件事</h1>
+            <p class="lead">
+              Codex 负责任务分析、任务单和 diff 审查；DeepSeek V4 只负责按任务单改代码；
+              你保留运行确认和最终 Git 提交权。
+            </p>
+            <div class="actions">
+              <a class="button button-primary" href="#usage">查看使用方式</a>
+              <a class="button button-secondary" href="https://github.com/ysj98/codex-opencode-deepseek-workflow">
+                打开 GitHub
+              </a>
+            </div>
+            <div class="metrics" aria-label="工作流特点">
+              <div class="metric">
+                <strong>3 方</strong>
+                <span>Codex / DeepSeek / User</span>
+              </div>
+              <div class="metric">
+                <strong>0 提交</strong>
+                <span>默认不 add、commit、push</span>
+              </div>
+              <div class="metric">
+                <strong>1 diff</strong>
+                <span>最终交付可审查变更</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-panel" aria-label="触发示例">
+            <div class="terminal-bar">
+              <div class="window-dots" aria-hidden="true">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <span class="terminal-label">Codex prompt</span>
+            </div>
+            <pre><code>使用 $codex-opencode-deepseek-workflow：
+
+请先分析需求并生成《AI 开发任务单》，
+再调用 OpenCode + DeepSeek V4 修改代码，
+最后由 Codex 审查 git diff。
+
+最终运行确认和 Git 提交由我完成。</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="roles" class="section">
+        <div class="shell">
+          <div class="section-head">
+            <h2>角色边界先说清楚</h2>
+            <p>让计划、执行、验收各自独立，减少越权修改、隐式提交和“自己审自己”的风险。</p>
+          </div>
+          <div class="cards">
+            <article class="card">
+              <span class="tag">Codex</span>
+              <h3>架构与任务控制</h3>
+              <p>读取项目规则，分析需求，输出《AI 开发任务单》，审查 diff，并生成返修意见。</p>
+            </article>
+            <article class="card">
+              <span class="tag accent">DeepSeek V4</span>
+              <h3>代码执行</h3>
+              <p>通过 OpenCode 在隔离 worktree 中按任务单改代码，根据审查意见做最小返修。</p>
+            </article>
+            <article class="card">
+              <span class="tag">User</span>
+              <h3>运行与提交</h3>
+              <p>运行项目，确认 UI 与业务效果，最终决定何时提交、推送或创建 PR。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="workflow" class="section">
+        <div class="shell">
+          <div class="section-head center">
+            <h2>从需求到可审查 diff</h2>
+            <p>工具不替你做最终 Git 决策，只产出更容易审查、验证和返修的代码变更。</p>
+          </div>
+          <div class="workflow">
+            <article class="step">
+              <div class="number">1</div>
+              <h3>分析需求</h3>
+              <p>Codex 读取 AGENTS.md、README、manifest、脚本和相关源码。</p>
+            </article>
+            <article class="step">
+              <div class="number">2</div>
+              <h3>生成任务单</h3>
+              <p>明确修改范围、禁止事项、实现要求、验收标准和建议验证命令。</p>
+            </article>
+            <article class="step">
+              <div class="number">3</div>
+              <h3>执行修改</h3>
+              <p>OpenCode 调用 DeepSeek V4，在外部 worktree 中留下未提交 diff。</p>
+            </article>
+            <article class="step">
+              <div class="number">4</div>
+              <h3>审查返修</h3>
+              <p>Codex 审查 git diff，必要时让 DeepSeek 按审查意见返修。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="usage" class="section">
+        <div class="shell">
+          <div class="section-head">
+            <h2>使用方式</h2>
+            <p>推荐从 Codex 显式触发。你也可以手动生成任务单，再调用 OpenCode worker。</p>
+          </div>
+
+          <div class="usage-grid">
+            <div class="usage-list">
+              <article class="usage-card">
+                <h3><span class="usage-index">1</span>在 Codex 中显式触发</h3>
+                <p>普通 Codex 编码不会自动接管。只有你明确要求使用该 workflow 时，Codex 才会生成任务单并调用 OpenCode。</p>
+              </article>
+              <article class="usage-card">
+                <h3><span class="usage-index">2</span>让 DeepSeek 按任务单执行</h3>
+                <p>脚本会创建外部 worktree，并通过 <code>opencode run --agent codex-worker</code> 调用 DeepSeek V4。</p>
+              </article>
+              <article class="usage-card">
+                <h3><span class="usage-index">3</span>由 Codex 审查 diff</h3>
+                <p>Codex 检查变更范围、项目规则和验证结果。需要返修时，再把审查意见交给 DeepSeek。</p>
+              </article>
+            </div>
+
+            <div>
+              <div class="command-card">
+                <div class="terminal-bar">
+                  <div class="window-dots" aria-hidden="true">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                  </div>
+                  <span class="terminal-label">Codex 触发</span>
+                </div>
+                <pre><code>使用 $codex-opencode-deepseek-workflow：
+
+请为这个需求生成《AI 开发任务单》，
+调用 OpenCode + DeepSeek V4 执行，
+然后审查 git diff 并给出返修意见。</code></pre>
+              </div>
+
+              <div class="command-card">
+                <div class="terminal-bar">
+                  <div class="window-dots" aria-hidden="true">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                  </div>
+                  <span class="terminal-label">手动调用</span>
+                </div>
+                <pre><code>powershell -NoProfile -ExecutionPolicy Bypass `
+  -File "$HOME\.codex\skills\codex-opencode-deepseek-workflow\scripts\run-opencode-worker.ps1" `
+  -RepoPath "D:\path\to\your-repo" `
+  -TaskFile "C:\path\to\AI-DEV-TASK.md" `
+  -TaskSlug "feature-name"</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell split">
+          <div class="panel">
+            <span class="tag accent">Safety</span>
+            <h2>默认安全边界</h2>
+            <p>
+              适用于所有 Git 项目：工具不直接污染当前工作区，也不会接管最终发布流程。
+              <code>codex-worker</code> 只是一个可选 agent，不会影响你直接使用 OpenCode。
+            </p>
+          </div>
+          <ul class="checklist">
+            <li>源工作区不干净时拒绝启动 worker。</li>
+            <li>OpenCode 在外部 Git worktree 中执行代码修改。</li>
+            <li>DeepSeek worker 禁止提交、推送、建 PR 和运行 shell。</li>
+            <li>只有显式调用 <code>--agent codex-worker</code> 时，该 agent 才会生效。</li>
+            <li>Codex 只审查 diff 和运行验证，最终提交由用户决定。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="install" class="section">
+        <div class="shell">
+          <div class="cta">
+            <div class="section-head">
+              <h2>快速安装</h2>
+              <p>把仓库克隆到 Codex 用户技能目录，再复制 OpenCode worker agent。</p>
+            </div>
+            <div class="command-card">
+              <div class="terminal-bar">
+                <div class="window-dots" aria-hidden="true">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </div>
+                <span class="terminal-label">PowerShell</span>
+              </div>
+              <pre><code>git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
+  "$HOME\.codex\skills\codex-opencode-deepseek-workflow"
+
+New-Item -ItemType Directory -Force "$HOME\.config\opencode\agents" | Out-Null
+
+Copy-Item `
+  "$HOME\.codex\skills\codex-opencode-deepseek-workflow\opencode\agents\codex-worker.md" `
+  "$HOME\.config\opencode\agents\codex-worker.md" `
+  -Force</code></pre>
+            </div>
+            <div class="actions">
+              <a class="button button-primary" href="https://github.com/ysj98/codex-opencode-deepseek-workflow">
+                打开仓库
+              </a>
+              <a class="button button-secondary" href="#top">回到顶部</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="shell">
+        <p>
+          Codex OpenCode DeepSeek Workflow. Built for explicit AI delegation,
+          reviewable diffs, and human-owned Git decisions.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

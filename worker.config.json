@@ -1,0 +1,6 @@
+{
+  "model": "deepseek/deepseek-v4-pro",
+  "agent": "codex-worker",
+  "runsRoot": "C:\\Users\\yshij\\.codex\\runs\\codex-opencode-deepseek-workflow",
+  "worktreesRoot": "C:\\Users\\yshij\\.codex\\worktrees"
+}
