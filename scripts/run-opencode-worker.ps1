@@ -142,12 +142,12 @@ You may spend substantial worker-model tokens reading project files, searching, 
 
 Follow the task order's suggested route, but verify every assumption against the repository before changing code.
 Modify code only in the current Git working directory.
-Run appropriate tests, builds, type checks, linters, or focused validation commands when available.
+Run only focused validation commands that are clearly relevant and reasonably bounded.
 Do not stage, commit, merge, push, create branches, create pull requests, or run release steps.
 Do not read, print, or store secrets or API keys.
 
 If the task order is ambiguous, contradicted by the repository, or unsafe, stop and explain the blocker instead of guessing.
-In your final response, summarize changed files, validation commands and results, remaining risks, and any blocker.
+Keep your final response brief: changed files, commands run, pass/fail status, and blockers only.
 "@
 
 $logPath = Join-Path $runDir 'opencode-events.jsonl'
@@ -258,9 +258,10 @@ $summary = [pscustomobject]@{
   promptFile = $promptPath
   runnerScript = if ($Background) { $runnerPath } else { $null }
   nextSteps = @(
-    'If background is true, use scripts/check-opencode-worker.ps1 with this runDir to check status later.',
+    'Codex should stop after returning this summary; do not poll, wait, inspect logs, validate, or summarize worker progress unless the user explicitly asks.',
+    'If the user explicitly asks to check later, use scripts/check-opencode-worker.ps1 with this runDir.',
     'User reviews git diff in the current working directory after the worker completes.',
-    'User reviews the worker validation summary and may rerun verification manually after completion.',
+    'User may rerun verification manually after completion.',
     'Codex does not perform final diff review, business validation, or Git finalization in this workflow.'
   )
 }

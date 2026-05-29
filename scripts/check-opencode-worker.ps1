@@ -2,8 +2,9 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$RunDir,
 
-  [int]$TailLines = 40,
+  [int]$TailLines = 20,
   [int]$MaxTailChars = 12000,
+  [switch]$IncludeLogTail,
   [switch]$NoLogTail
 )
 
@@ -59,12 +60,12 @@ if ($completion) {
 }
 
 $logTail = @()
-if (-not $NoLogTail -and $summary.opencodeLog) {
+if ($IncludeLogTail -and -not $NoLogTail -and $summary.opencodeLog) {
   $logTail = Get-FileTail -Path $summary.opencodeLog -Lines $TailLines -MaxChars $MaxTailChars
 }
 
 $stderrTail = @()
-if (-not $NoLogTail -and $summary.opencodeStderr) {
+if ($IncludeLogTail -and -not $NoLogTail -and $summary.opencodeStderr) {
   $stderrTail = Get-FileTail -Path $summary.opencodeStderr -Lines 20 -MaxChars 6000
 }
 
@@ -80,7 +81,8 @@ if (-not $NoLogTail -and $summary.opencodeStderr) {
   opencodeLog = $summary.opencodeLog
   opencodeStderr = $summary.opencodeStderr
   completionFile = $summary.completionFile
-  logTailLines = if ($NoLogTail) { 0 } else { $TailLines }
+  logTailIncluded = [bool]($IncludeLogTail -and -not $NoLogTail)
+  logTailLines = if ($IncludeLogTail -and -not $NoLogTail) { $TailLines } else { 0 }
   logTail = $logTail
   stderrTail = $stderrTail
 } | ConvertTo-Json -Depth 8

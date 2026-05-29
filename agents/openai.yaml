@@ -1,7 +1,7 @@
 interface:
   display_name: "Codex OpenCode Worker Workflow"
   short_description: "Async-first workflow where Codex does bounded architecture guidance and OpenCode/DeepSeek spends the main token budget on implementation and validation."
-  default_prompt: "Use $codex-opencode-deepseek-workflow. Codex should perform bounded targeted reconnaissance, create a construction-grade AI development task order, start OpenCode with the configured worker model in the background for this Git working directory, immediately report the run directory, process id, task file, and log path, and leave final diff review and Git finalization to the user."
+  default_prompt: "Use $codex-opencode-deepseek-workflow. Codex should perform bounded targeted reconnaissance, create a construction-grade AI development task order, start OpenCode with the configured worker model in the background for this Git working directory, immediately report the run directory, process id, task file, and log path, then stop without polling, waiting, validating, reading logs, or summarizing worker progress."
 
 policy:
   allow_implicit_invocation: false

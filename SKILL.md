@@ -48,6 +48,9 @@ OpenCode or a worker model.
   tokens reading, searching, editing, and running validation commands.
 - Default to background worker execution: Codex launches the worker, reports the
   run directory and process id, then stops.
+- After reporting a background worker launch, Codex must not poll, wait, inspect
+  logs, validate, infer what the worker is doing, or summarize worker progress
+  unless the user explicitly asks.
 - Keep task orders, logs, and summaries outside the target project by default.
 - Let OpenCode modify code directly in the current Git working directory.
 - Leave final diff review, business validation, staging, commits, pushes, and
@@ -75,8 +78,9 @@ boundaries; let the worker spend tokens on execution.
   write a construction-grade task order, launch OpenCode in the background,
   report artifacts, then stop.
 - OpenCode worker model: follow the task order, discover additional context,
-  implement the change, run appropriate validation commands, and summarize what
-  changed and what validation passed or failed.
+  implement the change, run only focused and reasonably bounded validation
+  commands, and briefly report changed files, commands run, pass/fail status,
+  and blockers.
 - User: later inspect `git diff`, check the worker summary, confirm
   runtime/business behavior, and decide whether to `git add`, `commit`, `push`,
   or create a PR.
@@ -101,10 +105,13 @@ boundaries; let the worker spend tokens on execution.
    - Only omit `-Background` when the user explicitly asks Codex to wait.
 5. Final output must include the target repo path, run directory, task file,
    OpenCode log path, worker status, process id, model, and the check command.
-6. When the user later asks to check progress, run
+6. Stop immediately after that final output. Do not continue waiting or checking
+   progress inside the same turn.
+7. When the user later asks to check progress, run
    `scripts/check-opencode-worker.ps1 -RunDir <runDir>`.
    - Default check reads `worker-summary.json`, optional `worker-completion.json`,
-     process status, and only a small log tail.
+     and process status only.
+   - Add `-IncludeLogTail` only when the user explicitly asks for logs.
    - Do not read or paste the full OpenCode log unless the user explicitly asks.
 
 ## Task Order Format
@@ -133,8 +140,8 @@ Guidance for sections:
   call paths, likely changes, compatibility concerns, and how to avoid unrelated
   edits.
 - `Worker 执行步骤`: explicitly tell OpenCode/DeepSeek to supplement context,
-  implement, run validation, and stop with a blocker summary if the plan is
-  unsafe or contradicted by the repository.
+  implement, run only focused bounded validation, and stop with a brief blocker
+  summary if the plan is unsafe or contradicted by the repository.
 
 ## Model Configuration
 
@@ -186,7 +193,7 @@ PID: <processId>
 稍后检查:
 powershell -NoProfile -ExecutionPolicy Bypass -File "<skill>/scripts/check-opencode-worker.ps1" -RunDir "<runDir>"
 
-此 workflow 不等待 worker 完成、不自动提交 Git。worker 完成后请人工查看 git diff 和验证摘要。
+此 workflow 不等待 worker 完成、不主动检查进度、不自动提交 Git。worker 完成后请人工查看 git diff。
 ```
 
 ## Resources

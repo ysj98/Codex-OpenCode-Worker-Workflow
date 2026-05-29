@@ -109,10 +109,11 @@
     }
     .hero-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.85fr);
       gap: 44px;
       align-items: center;
     }
+    .hero-grid > * { min-width: 0; }
     .eyebrow {
       display: inline-flex;
       align-items: center;
@@ -132,9 +133,12 @@
     h1 {
       margin: 16px 0 16px;
       max-width: 820px;
-      font-size: clamp(40px, 7vw, 74px);
+      font-size: clamp(36px, 5.4vw, 66px);
       line-height: 1.04;
       letter-spacing: 0;
+      overflow-wrap: anywhere;
+      word-break: normal;
+      text-wrap: balance;
     }
     .hero p {
       max-width: 710px;
@@ -452,6 +456,7 @@
       .grid-3 { grid-template-columns: 1fr 1fr; }
       .flow { grid-template-columns: repeat(3, 1fr); }
       .hero { min-height: auto; }
+      h1 { font-size: clamp(30px, 5.8vw, 48px); }
     }
     @media (max-width: 620px) {
       .wrap { width: min(100% - 28px, 1120px); }
@@ -459,6 +464,7 @@
       .grid-3, .flow { grid-template-columns: 1fr; }
       .metric { grid-template-columns: 1fr; gap: 4px; }
       section { padding: 46px 0; }
+      h1 { font-size: clamp(26px, 7vw, 38px); }
     }
   </style>
 </head>
@@ -483,7 +489,7 @@
       <div class="wrap hero-grid">
         <div data-reveal>
           <div class="eyebrow" data-reveal><span class="dot"></span>Codex 指导，Worker 后台执行</div>
-          <h1 data-reveal>Codex 发任务就返回，OpenCode/DeepSeek 后台跑。</h1>
+          <h1 data-reveal>Codex 发任务就返回，OpenCode/<wbr>DeepSeek 后台跑。</h1>
           <p data-reveal>这个 skill 让 Codex 做定向侦察、架构判断和任务拆解，然后后台启动 OpenCode worker，把仓库阅读、代码修改和验证命令交给 DeepSeek 慢慢消耗。</p>
           <div class="actions" data-reveal>
             <a class="btn primary" href="#start">开始使用</a>

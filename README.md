@@ -21,7 +21,7 @@
 这个 workflow 把分工改成：
 
 - **Codex**：做定向侦察，理解需求，写施工级 `AI-DEV-TASK.md`，后台启动 worker，立刻报告日志。
-- **OpenCode worker 模型**：大量读取、搜索、实现、运行测试/构建/类型检查，并总结验证结果。
+- **OpenCode worker 模型**：大量读取、搜索、实现，并只运行聚焦且耗时可控的验证命令。
 - **用户**：稍后检查 worker 状态，人工查看 `git diff`，确认效果，并决定是否 `git add/commit/push`。
 
 这样 Codex 消耗保持可控，等待时间也短得多。
@@ -89,7 +89,7 @@ Codex 会读取少量关键文件，生成施工级 `AI-DEV-TASK.md`，再后台
 
 ## 检查 worker 状态
 
-后台 worker 运行时，不要把完整 OpenCode 日志喂回 Codex。使用轻量检查脚本：
+后台 worker 运行时，Codex 不会主动轮询、等待、验证或总结。需要检查时，使用轻量检查脚本：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
@@ -97,10 +97,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -RunDir "C:\Users\you\.codex\runs\codex-opencode-deepseek-workflow\your-run-dir"
 ```
 
-默认只读取 `worker-summary.json`、完成状态和日志尾部 40 行。需要更省 token 时可加：
+默认只读取 `worker-summary.json`、完成状态和进程状态，不读取日志尾部。确实需要看日志时再加：
 
 ```powershell
--NoLogTail
+-IncludeLogTail
 ```
 
 ## 工作流
@@ -121,8 +121,8 @@ flowchart LR
 - 小任务可用 `fast`：只读指导文件和 manifest/config。
 - 风险任务可用 `deep-plan`：最多 12 个相关文件，但只在明确需要时使用。
 - Codex 写出实现路线、入口线索、风险边界和验证建议。
-- Codex 不直接改代码，不做全仓扫描，不等待 worker 完成，不复核最终 diff。
-- OpenCode/DeepSeek 可以大量消耗 token 做仓库阅读、搜索、实现和验证。
+- Codex 不直接改代码，不做全仓扫描，不等待 worker 完成，不主动检查进度，不复核最终 diff。
+- OpenCode/DeepSeek 可以大量消耗 token 做仓库阅读、搜索和实现；验证命令应聚焦且有界。
 
 ## 模型配置
 
@@ -231,11 +231,11 @@ codex-opencode-deepseek-workflow/
 
 ### 为什么后台运行更省 Codex？
 
-同步等待时，Codex 会一直占着这一轮对话直到 worker 完成。后台运行后，Codex 只负责启动和报告路径，DeepSeek/OpenCode 慢慢执行，后续再用轻量检查脚本读取少量状态。
+同步等待时，Codex 会一直占着这一轮对话直到 worker 完成。后台运行后，Codex 只负责启动和报告路径，然后停止；DeepSeek/OpenCode 慢慢执行。只有你明确要求检查时，才用轻量脚本读取少量状态。
 
 ### 为什么允许 worker 运行验证命令？
 
-因为这个 workflow 的目标是让 OpenCode/DeepSeek 承担主要 token 和执行成本。worker 可以跑测试、构建、类型检查等验证命令，把结果总结给用户。
+因为这个 workflow 的目标是让 OpenCode/DeepSeek 承担主要 token 和执行成本。worker 可以跑测试、构建、类型检查等验证命令，但应选择与任务直接相关、耗时可控的命令。
 
 ### 为什么仍然不自动提交？
 
