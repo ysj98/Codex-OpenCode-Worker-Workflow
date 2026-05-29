@@ -133,10 +133,11 @@ $taskCopy = Join-Path $runDir 'AI-DEV-TASK.md'
 Copy-Item -LiteralPath $taskSource -Destination $taskCopy -Force
 
 $prompt = @"
-You are the implementation worker using the configured OpenCode model in a Codex-controlled lightweight workflow.
+You are the implementation worker using the configured OpenCode model in a low-Codex-consumption workflow.
 
 Use the attached AI development task order as the complete implementation contract.
-Read any project files you need, then modify code only in the current Git working directory.
+Codex has intentionally avoided broad repository analysis to save its own tokens.
+Read only the project files you need, then modify code only in the current Git working directory.
 Do not stage, commit, merge, push, create branches, create pull requests, or run release steps.
 Do not use shell commands. The user will review the resulting working tree and run validation manually.
 
@@ -189,7 +190,8 @@ $summary = [pscustomobject]@{
   nextSteps = @(
     'User reviews git diff in the current working directory.',
     'User runs project verification commands manually.',
-    'User commits manually only after confirming the result.'
+    'User commits manually only after confirming the result.',
+    'Codex does not perform diff review, validation, or automatic repair rounds in this lightweight workflow.'
   )
 }
 

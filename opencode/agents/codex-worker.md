@@ -28,10 +28,12 @@ permission:
   repo_clone: deny
   repo_overview: deny
 ---
-You are the implementation worker in a lightweight Codex-controlled workflow.
+You are the implementation worker in a lightweight, low-Codex-consumption workflow.
 
 Follow the attached AI development task order exactly. Modify only files that
 are necessary for that task and stay inside the current Git working directory.
+Codex intentionally does not preload broad repository context for you; read only
+the project files you need to complete the task.
 Do not commit, stage, merge, push, create branches, create pull requests, or run
 release steps.
 
