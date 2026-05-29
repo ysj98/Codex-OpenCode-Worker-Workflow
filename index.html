@@ -4,17 +4,30 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="description" content="本机个人级 Codex OpenCode Worker Workflow：Codex 生成轻量任务单，OpenCode 在当前工作区执行，用户人工核查并保留最终 Git 决策。" />
+<meta name="theme-color" content="#0d9488" />
+<meta name="robots" content="index, follow" />
+<meta property="og:title" content="Codex OpenCode Worker Workflow" />
+<meta property="og:description" content="Codex 轻量编排，OpenCode 工作区执行，用户保留最终 Git 决策。" />
+<meta property="og:image" content="assets/logo.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Codex OpenCode Worker Workflow" />
+<meta name="twitter:description" content="Codex 轻量编排，OpenCode 工作区执行，用户保留最终 Git 决策。" />
+<meta name="twitter:image" content="assets/logo.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="assets/logo.png" />
 <title>Codex OpenCode Worker Workflow</title>
+<link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css" />
 <style>
   :root {
-    --bg: #fafbfc;
+    --bg: #f6faf9;
     --surface: #fff;
-    --text: #111827;
-    --muted: #6b7280;
-    --border: #e5e7eb;
-    --accent: #0f766e;
-    --accent2: #4338ca;
-    --warn: #b45309;
+    --text: #0f172a;
+    --muted: #475569;
+    --border: #e2e8f0;
+    --accent: #0d9488;
+    --accent2: #4f46e5;
+    --warn: #d97706;
     --radius: 8px;
     --font: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
     --mono: "Cascadia Code", Consolas, "SFMono-Regular", monospace;
@@ -22,6 +35,10 @@
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; }
   html { scroll-behavior: smooth; }
+
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes soft-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+
   body {
     font-family: var(--font);
     color: var(--text);
@@ -35,7 +52,7 @@
   /* nav */
   .nav {
     position: sticky; top: 0; z-index: 10;
-    background: rgba(250,251,252,.92);
+    background: rgba(246,250,249,.94);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
   }
@@ -48,42 +65,70 @@
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text) !important; }
   .brand-icon {
     width: 30px; height: 30px; display: grid; place-items: center;
-    border-radius: 6px; background: var(--text); color: #fff; font-weight: 800; font-size: 13px;
+    border-radius: 7px; background: var(--accent);
+    animation: float 3s ease-in-out infinite;
   }
   .nav-links { display: flex; gap: 16px; }
   .nav-links a { font-weight: 500; }
 
   /* hero */
   .hero { padding: 80px 0 64px; text-align: center; }
+  .hero-logo { display: block; margin: 0 auto 24px; }
+  .hero-logo > svg { width: 72px; height: 72px; }
   .badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; border-radius: 20px;
-    background: rgba(15,118,110,.1); color: var(--accent);
+    background: rgba(13,148,136,.1); color: var(--accent);
     font-size: 13px; font-weight: 700;
+    animation: float 4s ease-in-out infinite;
   }
   .hero h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.12; margin-top: 16px; letter-spacing: -.02em; }
+  .hero h1 .hl {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 4s ease-in-out infinite;
+  }
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+  }
+  .hero h1 .sub {
+    display: inline-block; position: relative;
+  }
+  .hero h1 .sub::after {
+    content: ''; position: absolute; left: 0; bottom: 2px; width: 100%; height: 3px;
+    background: var(--accent); border-radius: 2px;
+    transform: scaleX(0); transform-origin: left;
+    animation: underline-reveal 1s .6s ease-out forwards;
+  }
+  @keyframes underline-reveal {
+    to { transform: scaleX(1); }
+  }
   .hero > .wrap > p { color: var(--muted); font-size: clamp(16px, 2vw, 18px); margin: 14px auto 0; max-width: 560px; }
   .hero-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; justify-content: center; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     min-height: 44px; padding: 0 20px; border-radius: var(--radius);
     font-weight: 600; font-size: 14px; text-decoration: none;
-    border: 1.5px solid var(--text); transition: .15s;
+    border: 1.5px solid var(--text); transition: transform .2s, background .2s, border-color .2s;
   }
-  .btn-pri { background: var(--text); color: #fff; }
-  .btn-pri:hover { opacity: .85; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-pri:hover { background: #0f766e; border-color: #0f766e; }
   .btn-sec { background: var(--surface); color: var(--text); }
-  .btn-sec:hover { background: var(--border); }
+  .btn-sec:hover { background: #f1f5f9; }
 
   /* hero stats */
   .hero-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; margin-top: 36px; }
   .hero-stat { text-align: center; }
-  .hero-stat b { display: block; font-size: 22px; }
+  .hero-stat b { display: block; font-size: 22px; color: var(--accent); }
   .hero-stat span { color: var(--muted); font-size: 13px; }
 
   /* sections */
   .sec { padding: 56px 0; }
-  .sec h2 { font-size: clamp(24px, 3.5vw, 36px); line-height: 1.2; margin-bottom: 8px; }
+  .sec h2 { font-size: clamp(24px, 3.5vw, 36px); line-height: 1.2; margin-bottom: 8px; color: var(--accent); }
   .sec > .wrap > p { color: var(--muted); font-size: 16px; margin-bottom: 28px; }
 
   /* cards */
@@ -93,7 +138,9 @@
   .card {
     border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--surface); padding: 22px;
+    transition: transform .3s, box-shadow .3s;
   }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.06); }
   .card h3 { font-size: 17px; margin-bottom: 6px; }
   .card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
   .card .tag {
@@ -124,7 +171,7 @@
   .code-block-title .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
   .code-block pre {
     margin: 0; padding: 16px; overflow-x: auto;
-    background: #1e1e2e; color: #cdd6f4; font-family: var(--mono);
+    background: #1a1b2e; color: #cdd6f4; font-family: var(--mono);
     font-size: 13px; line-height: 1.7;
   }
 
@@ -133,10 +180,12 @@
   .step {
     border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--surface); padding: 22px;
+    transition: transform .3s, box-shadow .3s;
   }
+  .step:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.06); }
   .step-num {
     width: 28px; height: 28px; display: grid; place-items: center;
-    border-radius: 6px; background: var(--text); color: #fff;
+    border-radius: 6px; background: var(--accent); color: #fff;
     font-weight: 800; font-size: 13px; margin-bottom: 12px;
   }
   .step h3 { font-size: 16px; margin-bottom: 4px; }
@@ -148,29 +197,29 @@
     padding: 12px 14px; border-bottom: 1px solid var(--border);
     text-align: left; font-size: 14px;
   }
-  .cfg-table th { width: 30%; font-weight: 600; background: #f9fafb; }
+  .cfg-table th { width: 30%; font-weight: 600; background: #f0fdf4; }
   .cfg-table code { font-size: 13px; font-family: var(--mono); }
 
   /* advantages */
-  .advantages { background: linear-gradient(135deg, #f0fdf9 0%, #eef2ff 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .advantages { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .adv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .adv-card {
     border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--surface); padding: 22px;
     box-shadow: 0 1px 4px rgba(0,0,0,.04);
-    transition: box-shadow .2s;
+    transition: transform .3s, box-shadow .3s;
   }
-  .adv-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  .adv-card:hover { transform: translateY(-6px); box-shadow: 0 12px 32px rgba(0,0,0,.1); }
   .adv-icon {
     width: 36px; height: 36px; display: grid; place-items: center;
     border-radius: 8px; margin-bottom: 14px;
   }
-  .adv-icon.tk { background: #eef2ff; color: var(--accent2); }
-  .adv-icon.md { background: #f0fdf9; color: var(--accent); }
-  .adv-icon.cl { background: #fefce8; color: #a16207; }
-  .adv-icon.sf { background: #fff1f2; color: #be123c; }
-  .adv-icon.un { background: #f5f3ff; color: #7c3aed; }
-  .adv-icon.au { background: #f0f9ff; color: #0369a1; }
+  .adv-icon.tk { background: #e0f2fe; color: #0284c7; }
+  .adv-icon.md { background: #ccfbf1; color: #0d9488; }
+  .adv-icon.cl { background: #ecfdf5; color: #059669; }
+  .adv-icon.sf { background: #ede9fe; color: #7c3aed; }
+  .adv-icon.un { background: #fef3c7; color: #d97706; }
+  .adv-icon.au { background: #e0e7ff; color: #4f46e5; }
   .adv-card h3 { font-size: 16px; margin-bottom: 6px; }
   .adv-card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
@@ -241,7 +290,15 @@
 <header class="nav">
   <div class="wrap">
     <a class="brand" href="#top">
-      <span class="brand-icon">CO</span>
+      <span class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M4 5L2 10L4 15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="5" y1="10" x2="8" y2="10" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="11" cy="10" r="2.2" fill="#fff"/>
+          <line x1="13.5" y1="10" x2="16" y2="10" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <polygon points="17,7 17,13 20,10" fill="#fff"/>
+        </svg>
+      </span>
       <span>Codex + OpenCode</span>
     </a>
     <nav class="nav-links">
@@ -259,20 +316,45 @@
   <!-- 项目简介 -->
   <section class="hero">
     <div class="wrap">
-      <span class="badge"><svg class="ico ico-sm"><use href="#i-zap"/></svg> 本机个人级 · 适用于所有 Git 项目</span>
-      <h1>Codex + OpenCode<br>Worker Workflow</h1>
-      <p>
+      <div class="hero-logo" data-aos="zoom-in" data-aos-duration="700">
+        <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="72" y2="72">
+              <stop offset="0%" stop-color="#0d9488"/>
+              <stop offset="100%" stop-color="#4f46e5"/>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="72" height="72" rx="18" fill="url(#lg)"/>
+          <!-- Codex bracket (left) -->
+          <path d="M16 18L10 36L16 54" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Workflow connector -->
+          <line x1="20" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Center node -->
+          <circle cx="33" cy="36" r="4.5" fill="#fff"/>
+          <!-- To execution -->
+          <line x1="39" y1="36" x2="47" y2="36" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- OpenCode play (right) -->
+          <circle cx="55" cy="36" r="12" stroke="#fff" stroke-width="2.5"/>
+          <polygon points="51.5,31 51.5,41 58,36" fill="#fff"/>
+        </svg>
+      </div>
+      <h1 data-aos="fade-up" data-aos-duration="600" data-aos-delay="100">
+        <span class="hl">Codex + OpenCode</span><br>
+        <span class="sub">Worker Workflow</span>
+      </h1>
+      <p data-aos="fade-up" data-aos-duration="600" data-aos-delay="200">
         Codex 生成轻量任务单并启动 worker，OpenCode 在当前工作区直接修改代码。<br>
         你负责核查 diff、运行验证、决定是否提交。
       </p>
-      <div class="hero-btns">
+      <div class="hero-btns" data-aos="fade-up" data-aos-duration="600" data-aos-delay="300">
         <a class="btn btn-pri" href="#start"><svg class="ico"><use href="#i-download"/></svg> 开始使用</a>
         <a class="btn btn-sec" href="https://github.com/ysj98/codex-opencode-deepseek-workflow"><svg class="ico"><use href="#i-github"/></svg> GitHub</a>
       </div>
-      <div class="hero-stats">
+      <div class="hero-stats" data-aos="fade-up" data-aos-duration="600" data-aos-delay="400">
         <div class="hero-stat"><b>轻量</b><span>Codex 零复核 diff</span></div>
         <div class="hero-stat"><b>安全</b><span>零自动 Git 操作</span></div>
         <div class="hero-stat"><b>通用</b><span>任意 Git 项目</span></div>
+        <div class="hero-stat"><b>节省</b><span>Token 消耗显著降低</span></div>
       </div>
     </div>
   </section>
@@ -280,26 +362,26 @@
   <!-- 快速开始 -->
   <section id="start" class="sec">
     <div class="wrap">
-      <h2><svg class="ico ico-lg"><use href="#i-download"/></svg> 快速开始</h2>
-      <p>安装后，在任意 Git 项目中对 Codex 说「使用 OpenCode + DeepSeek 执行」即可。</p>
+      <h2 data-aos="fade-right" data-aos-duration="500"><svg class="ico ico-lg"><use href="#i-download"/></svg> 快速开始</h2>
+      <p data-aos="fade-up" data-aos-duration="500" data-aos-delay="100">安装后，在任意 Git 项目中对 Codex 说「使用 OpenCode + DeepSeek 执行」即可。</p>
       <div class="cards cards-3">
-        <div class="card">
+        <div class="card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="150">
           <div class="tag tag-accent2"><svg class="ico ico-sm"><use href="#i-download"/></svg> Step 1</div>
           <h3>安装 skill</h3>
           <p>克隆仓库到 Codex 技能目录，Codex 即可发现该 workflow。</p>
         </div>
-        <div class="card">
+        <div class="card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="250">
           <div class="tag tag-accent"><svg class="ico ico-sm"><use href="#i-copy"/></svg> Step 2</div>
           <h3>复制 agent</h3>
           <p>将 <code>codex-worker.md</code> 复制到 OpenCode agents 目录，定义权限和行为。</p>
         </div>
-        <div class="card">
+        <div class="card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="350">
           <div class="tag tag-warn"><svg class="ico ico-sm"><use href="#i-play"/></svg> Step 3</div>
           <h3>显式触发</h3>
           <p>普通编码不会自动接管。只有你明确要求该 workflow 时才会调用 OpenCode。</p>
         </div>
       </div>
-      <div class="code-block" style="margin-top:18px">
+      <div class="code-block" style="margin-top:18px" data-aos="fade-up" data-aos-duration="600" data-aos-delay="200">
         <div class="code-block-title"><svg class="ico ico-sm"><use href="#i-terminal"/></svg> <span>PowerShell 安装命令</span> <button class="copy-btn" onclick="copyCode(this)"><svg class="ico ico-sm"><use href="#i-copy"/></svg> 复制</button></div>
 <pre id="install-cmd">git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
   "$HOME\.codex\skills\codex-opencode-deepseek-workflow"
@@ -315,27 +397,27 @@ Copy-Item `
   </section>
 
   <!-- 工作流 -->
-  <section id="flow" class="sec" style="background:#fff; border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <section id="flow" class="sec" style="border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
     <div class="wrap">
-      <h2><svg class="ico ico-lg"><use href="#i-git-branch"/></svg> 工作流</h2>
-      <p>从需求到修改只需四步，人工核查是必须环节。</p>
+      <h2 data-aos="fade-right" data-aos-duration="500"><svg class="ico ico-lg"><use href="#i-git-branch"/></svg> 工作流</h2>
+      <p data-aos="fade-up" data-aos-duration="500" data-aos-delay="100">从需求到修改只需四步，人工核查是必须环节。</p>
       <div class="steps">
-        <div class="step">
+        <div class="step" data-aos="zoom-in" data-aos-duration="500" data-aos-delay="100">
           <div class="step-num"><svg class="ico ico-sm"><use href="#i-rocket"/></svg></div>
           <h3>轻量编排</h3>
           <p>Codex 避免大范围读代码，只提炼目标、边界和约束。</p>
         </div>
-        <div class="step">
+        <div class="step" data-aos="zoom-in" data-aos-duration="500" data-aos-delay="200">
           <div class="step-num"><svg class="ico ico-sm"><use href="#i-file-text"/></svg></div>
           <h3>写任务单</h3>
           <p>明确目标、允许范围、禁止事项、验收标准和建议验证命令。</p>
         </div>
-        <div class="step">
+        <div class="step" data-aos="zoom-in" data-aos-duration="500" data-aos-delay="300">
           <div class="step-num"><svg class="ico ico-sm"><use href="#i-edit"/></svg></div>
           <h3>执行修改</h3>
           <p>OpenCode worker 在当前 Git 工作区留下未提交修改。</p>
         </div>
-        <div class="step">
+        <div class="step" data-aos="zoom-in" data-aos-duration="500" data-aos-delay="400">
           <div class="step-num"><svg class="ico ico-sm"><use href="#i-eye"/></svg></div>
           <h3>人工核查</h3>
           <p>查看 git diff，运行项目和测试，再决定是否提交。</p>
@@ -348,7 +430,7 @@ Copy-Item `
   <section id="config" class="sec">
     <div class="wrap">
       <div class="cards-2" style="display: grid; gap: 18px; grid-template-columns: 1fr 1fr;">
-        <div>
+        <div data-aos="fade-right" data-aos-duration="600">
           <h2><svg class="ico ico-lg"><use href="#i-settings"/></svg> 模型配置</h2>
           <p style="color:var(--muted); margin-bottom:16px;">
             <code style="font-weight:600;">codex-worker</code> 不绑定模型。修改 <code style="font-weight:600;">worker.config.json</code> 即可切换。
@@ -359,7 +441,7 @@ Copy-Item `
             <tr><th>长期</th><td>新增 <code>modelProfiles</code> 条目，改 <code>defaultModelProfile</code></td></tr>
           </table>
         </div>
-        <div class="code-block">
+        <div class="code-block" data-aos="fade-left" data-aos-duration="600">
           <div class="code-block-title">worker.config.json</div>
 <pre>{
   "defaultModelProfile": "deepseek-v4-pro",
@@ -379,35 +461,35 @@ Copy-Item `
   <!-- 核心优势 -->
   <section id="advantages" class="sec advantages">
     <div class="wrap">
-      <h2><svg class="ico ico-lg"><use href="#i-zap"/></svg> 核心优势</h2>
-      <p>为什么选择这个 workflow，而不是让 Codex 直接完成全流程。</p>
+      <h2 data-aos="fade-right" data-aos-duration="500"><svg class="ico ico-lg"><use href="#i-zap"/></svg> 核心优势</h2>
+      <p data-aos="fade-up" data-aos-duration="500" data-aos-delay="100">为什么选择这个 workflow，而不是让 Codex 直接完成全流程。</p>
       <div class="adv-grid">
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="100">
           <div class="adv-icon tk"><svg class="ico"><use href="#i-coins"/></svg></div>
           <h3>Token 消耗显著降低</h3>
           <p>Codex 只做轻量编排，长上下文阅读和代码修改交给 OpenCode。不复核 diff、不二次修复。</p>
         </div>
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="180">
           <div class="adv-icon md"><svg class="ico"><use href="#i-unplug"/></svg></div>
           <h3>模型完全解耦</h3>
           <p>agent 不绑定模型——切模型改一个 config 即可，脚本和 skill 无需任何修改。</p>
         </div>
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="260">
           <div class="adv-icon cl"><svg class="ico"><use href="#i-folder"/></svg></div>
           <h3>零污染 · 可追溯</h3>
           <p>产物全部存 <code>~/.codex/runs/</code>，业务仓库只留代码修改。每次运行生成结构化 JSON。</p>
         </div>
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="340">
           <div class="adv-icon sf"><svg class="ico"><use href="#i-shield"/></svg></div>
           <h3>默认不接管 Git 决策</h3>
           <p>不自动 add / commit / push，不创建 PR。Worker 仅 4 个工具，禁止 shell、子任务、外部目录。API Key 由 OpenCode 管理，本工具不读取。任务单和日志存用户级目录，不污染业务仓库。</p>
         </div>
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="420">
           <div class="adv-icon un"><svg class="ico"><use href="#i-package"/></svg></div>
           <h3>通用性极强</h3>
           <p>只要求 Git 仓库，不预设语言、框架、目录结构。不要求工作区干净。</p>
         </div>
-        <div class="adv-card">
+        <div class="adv-card" data-aos="fade-up" data-aos-duration="500" data-aos-delay="500">
           <div class="adv-icon au"><svg class="ico"><use href="#i-user-check"/></svg></div>
           <h3>用户保留最终决策权</h3>
           <p>Codex 不管 diff，Worker 不能 commit，全部 Git 操作由你手动执行。</p>
@@ -418,7 +500,7 @@ Copy-Item `
 
 </main>
 
-<footer class="footer">
+<footer class="footer" data-aos="fade-up" data-aos-duration="600">
   <div class="wrap">
     Codex OpenCode Worker Workflow — 轻量委托，工作区执行，人工 Git 决策。
   </div>
@@ -428,8 +510,11 @@ Copy-Item `
   <svg class="ico"><use href="#i-arrow-up"/></svg>
 </button>
 
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
 (function() {
+  AOS.init({ once: true, offset: 80, duration: 600 });
+
   var btn = document.getElementById('btt');
   var show = false;
   function toggle() {
