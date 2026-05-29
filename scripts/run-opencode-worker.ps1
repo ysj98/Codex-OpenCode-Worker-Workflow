@@ -14,8 +14,7 @@ param(
   [string]$Agent,
   [string]$RunsRoot,
   [string]$WorktreesRoot,
-  [switch]$PrepareOnly,
-  [switch]$AutoApproveOpenCodePermissions
+  [switch]$PrepareOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +36,36 @@ function Invoke-Git {
     throw "git $($Arguments -join ' ') failed: $output"
   }
   return $output
+}
+
+function Resolve-GitReportedPath {
+  param(
+    [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+    [Parameter(Mandatory = $true)][string]$GitPath
+  )
+  if ([IO.Path]::IsPathRooted($GitPath)) {
+    return (Resolve-Path -LiteralPath $GitPath).Path
+  }
+  return (Resolve-Path -LiteralPath (Join-Path $WorkingDirectory $GitPath)).Path
+}
+
+function Get-GitCommonDir {
+  param([Parameter(Mandatory = $true)][string]$WorkingDirectory)
+  $raw = (Invoke-Git -WorkingDirectory $WorkingDirectory -Arguments @('rev-parse', '--git-common-dir') | Select-Object -First 1).Trim()
+  return Resolve-GitReportedPath -WorkingDirectory $WorkingDirectory -GitPath $raw
+}
+
+function Test-IsPathUnder {
+  param(
+    [Parameter(Mandatory = $true)][string]$ChildPath,
+    [Parameter(Mandatory = $true)][string]$ParentPath
+  )
+  $trimChars = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  $child = [IO.Path]::GetFullPath($ChildPath).TrimEnd($trimChars)
+  $parent = [IO.Path]::GetFullPath($ParentPath).TrimEnd($trimChars)
+  if ($child.Equals($parent, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+  $parentWithSlash = $parent + [IO.Path]::DirectorySeparatorChar
+  return $child.StartsWith($parentWithSlash, [StringComparison]::OrdinalIgnoreCase)
 }
 
 function ConvertTo-Slug {
@@ -119,10 +148,11 @@ if ([string]::IsNullOrWhiteSpace($WorktreesRoot)) { $WorktreesRoot = Get-JsonFie
 
 $repoInput = (Resolve-Path -LiteralPath $RepoPath).Path
 $taskSource = (Resolve-Path -LiteralPath $TaskFile).Path
-$sourceRoot = (Invoke-Git -WorkingDirectory $repoInput -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
+$sourceRootRaw = (Invoke-Git -WorkingDirectory $repoInput -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
+$sourceRoot = (Resolve-Path -LiteralPath $sourceRootRaw).Path
 $sourceStatus = Invoke-Git -WorkingDirectory $sourceRoot -Arguments @('status', '--porcelain=v1')
 
-if (-not $ExistingWorktreePath -and $sourceStatus.Count -gt 0) {
+if ($sourceStatus.Count -gt 0) {
   throw "Source worktree is not clean. Commit, stash, or discard local changes before delegating to OpenCode."
 }
 
@@ -141,8 +171,23 @@ New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 if ($ExistingWorktreePath) {
   $worktree = (Resolve-Path -LiteralPath $ExistingWorktreePath).Path
   $worktreeRoot = (Invoke-Git -WorkingDirectory $worktree -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
-  $worktree = $worktreeRoot
+  $worktree = (Resolve-Path -LiteralPath $worktreeRoot).Path
+  $sourceCommonDir = Get-GitCommonDir -WorkingDirectory $sourceRoot
+  $worktreeCommonDir = Get-GitCommonDir -WorkingDirectory $worktree
+  if (-not $sourceCommonDir.Equals($worktreeCommonDir, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Existing worktree does not belong to the source repository. Source: $sourceRoot Existing: $worktree"
+  }
+  if (-not (Test-Path -LiteralPath $WorktreesRoot -PathType Container)) {
+    throw "Worktrees root does not exist: $WorktreesRoot"
+  }
+  $resolvedWorktreesRoot = (Resolve-Path -LiteralPath $WorktreesRoot).Path
+  if (-not (Test-IsPathUnder -ChildPath $worktree -ParentPath $resolvedWorktreesRoot)) {
+    throw "Existing worktree must be under WorktreesRoot. Existing: $worktree WorktreesRoot: $resolvedWorktreesRoot"
+  }
   $branch = (Invoke-Git -WorkingDirectory $worktree -Arguments @('branch', '--show-current') | Select-Object -First 1).Trim()
+  if (-not $branch.StartsWith('codex/opencode-', [StringComparison]::Ordinal)) {
+    throw "Existing worktree branch must start with 'codex/opencode-'. Current branch: $branch"
+  }
 } else {
   New-Item -ItemType Directory -Force -Path $WorktreesRoot | Out-Null
   $worktree = Join-Path $WorktreesRoot "$repoName-$taskId"
@@ -191,7 +236,6 @@ if (-not $PrepareOnly) {
   )
   if ($findingsCopy) { $args += @('--file', $findingsCopy) }
   if ($SessionId) { $args += @('--session', $SessionId) }
-  if ($AutoApproveOpenCodePermissions) { $args += '--dangerously-skip-permissions' }
   $args += $prompt
 
   $previousPreference = $ErrorActionPreference
@@ -222,7 +266,6 @@ $summary = [pscustomobject]@{
   model = $Model
   agent = $Agent
   prepareOnly = [bool]$PrepareOnly
-  autoApproveOpenCodePermissions = [bool]$AutoApproveOpenCodePermissions
   opencodeExitCode = $exitCode
   opencodeLog = $logPath
   gitStatus = @($status)

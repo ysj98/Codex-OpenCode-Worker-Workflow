@@ -90,6 +90,7 @@ Keep DeepSeek V4 Pro as the default profile unless the user explicitly changes i
 - Never stage, commit, merge, reset, push, create a PR, or run release steps.
 - Never copy, print, or store API keys. OpenCode owns provider credentials.
 - Do not run the worker when the source project has uncommitted changes.
+- Do not use OpenCode automatic permission approval or dangerous permission-skip modes.
 - Do not write run artifacts into the target project unless the user explicitly asks.
 - Do not claim success if validation failed, was skipped for a nontrivial reason, or required user runtime confirmation is still pending.
 
