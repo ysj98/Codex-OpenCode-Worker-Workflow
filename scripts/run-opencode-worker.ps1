@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)]
   [string]$RepoPath,
 
@@ -111,7 +111,7 @@ if ([string]::IsNullOrWhiteSpace($Model)) {
   throw "No OpenCode model configured. Pass -Model, set CODEX_OPENCODE_MODEL, pass -ModelProfile, set CODEX_OPENCODE_MODEL_PROFILE, or configure defaultModelProfile in worker.config.json."
 }
 if ([string]::IsNullOrWhiteSpace($Agent)) { $Agent = Get-JsonField -Object $config -Name 'agent' -Default 'codex-worker' }
-if ([string]::IsNullOrWhiteSpace($RunsRoot)) { $RunsRoot = Get-JsonField -Object $config -Name 'runsRoot' -Default (Join-Path $HOME '.codex\runs\codex-opencode-deepseek-workflow') }
+if ([string]::IsNullOrWhiteSpace($RunsRoot)) { $RunsRoot = Get-JsonField -Object $config -Name 'runsRoot' -Default (Join-Path $HOME '.codex\runs\codex-opencode-worker-workflow') }
 
 $repoInput = (Resolve-Path -LiteralPath $RepoPath).Path
 $taskSource = (Resolve-Path -LiteralPath $TaskFile).Path

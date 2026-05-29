@@ -35,7 +35,7 @@ $repoName = Split-Path -Leaf $root
 $safeTitle = ($Title.ToLowerInvariant() -replace '[^a-z0-9\u4e00-\u9fff]+', '-').Trim('-')
 if ([string]::IsNullOrWhiteSpace($safeTitle)) { $safeTitle = 'task' }
 
-$runRoot = Join-Path $HOME '.codex\runs\codex-opencode-deepseek-workflow'
+$runRoot = Join-Path $HOME '.codex\runs\codex-opencode-worker-workflow'
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
   $dir = Join-Path $runRoot "$repoName-$timestamp-$safeTitle"

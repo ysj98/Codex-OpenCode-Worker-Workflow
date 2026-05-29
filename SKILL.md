@@ -1,16 +1,17 @@
 ---
-name: codex-opencode-deepseek-workflow
+name: codex-opencode-worker-workflow
 description: >-
   Explicit-only personal Codex skill for Git projects when the user wants
   Codex to minimize its own token/cost usage while using its reasoning ability
   to guide OpenCode, DeepSeek, or another configured worker model. Use only
-  when the user names $codex-opencode-deepseek-workflow, asks for
-  OpenCode/DeepSeek execution, asks Codex to write an implementation plan for a
-  worker model, or explicitly wants low-Codex-cost delegated coding. Codex acts
-  as architect/planner: perform bounded targeted reconnaissance, write a
-  construction-grade AI development task order, launch OpenCode in the current
-  Git working directory, return run artifacts immediately by default, and leave
-  final review and Git decisions to the user.
+  when the user names Codex OpenCode Worker Workflow, uses
+  $codex-opencode-worker-workflow, asks for OpenCode/DeepSeek execution, asks
+  Codex to write an implementation plan for a worker model, or explicitly wants
+  low-Codex-cost delegated coding. Codex acts as architect/planner: perform
+  bounded targeted reconnaissance, write a construction-grade AI development
+  task order, launch OpenCode in the current Git working directory, return run
+  artifacts immediately by default, and leave final review and Git decisions to
+  the user.
 ---
 
 # Codex OpenCode Worker Workflow
@@ -23,15 +24,16 @@ choosing safety boundaries, and writing a high-quality task order for another
 model.
 
 The token-heavy work belongs to OpenCode with the configured worker model,
-usually DeepSeek: broad repository reading, searches, implementation, test
-execution, and verification. The default run mode is async-first so Codex does
+usually DeepSeek: broad repository reading, searches, implementation, focused
+validation, and verification. The default run mode is async-first so Codex does
 not wait while the worker spends tokens.
 
 ## Trigger
 
 Use this skill only when the user explicitly asks for one of these:
 
-- `$codex-opencode-deepseek-workflow`
+- `Codex OpenCode Worker Workflow`
+- `$codex-opencode-worker-workflow`
 - OpenCode execution
 - DeepSeek or another non-Codex worker model to implement code changes
 - Codex to guide, brief, or write a task order for OpenCode/DeepSeek
@@ -45,7 +47,7 @@ OpenCode or a worker model.
 
 - Codex is the architect/planner, not the implementer.
 - OpenCode/DeepSeek is the implementer/verifier and may spend substantial
-  tokens reading, searching, editing, and running validation commands.
+  tokens reading, searching, editing, and running focused validation commands.
 - Default to background worker execution: Codex launches the worker, reports the
   run directory and process id, then stops.
 - After reporting a background worker launch, Codex must not poll, wait, inspect
@@ -99,7 +101,7 @@ boundaries; let the worker spend tokens on execution.
      verify by reading the code.
 4. Run `scripts/run-opencode-worker.ps1` with `-Background` by default.
    - The script launches `opencode run <message> --dir <repo-root> --agent
-     <configured-agent> --model <configured-model> --file <task>`.
+<configured-agent> --model <configured-model> --file <task>`.
    - Background mode writes logs and completion state under the run directory,
      returns JSON immediately, and avoids Codex waiting for worker completion.
    - Only omit `-Background` when the user explicitly asks Codex to wait.
