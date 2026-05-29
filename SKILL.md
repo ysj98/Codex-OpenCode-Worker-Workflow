@@ -1,6 +1,12 @@
 ---
 name: codex-opencode-deepseek-workflow
-description: Explicit-only personal Codex skill for any Git project when the user asks for OpenCode/DeepSeek execution or names $codex-opencode-deepseek-workflow. Codex orchestrates the work: inspect the target repository, write an AI development task order, invoke OpenCode with the configured worker model (DeepSeek V4 Pro by default), review and verify the resulting git diff, request repairs when needed, and stop before user runtime confirmation or any Git finalization.
+description: >-
+  Explicit-only personal Codex skill for any Git project when the user asks for
+  OpenCode/DeepSeek execution or names $codex-opencode-deepseek-workflow. Codex
+  orchestrates the work: inspect the target repository, write an AI development
+  task order, invoke OpenCode with the configured worker model (DeepSeek V4 Pro
+  by default), review and verify the resulting git diff, request repairs when
+  needed, and stop before user runtime confirmation or any Git finalization.
 ---
 
 # Codex OpenCode Worker Workflow
