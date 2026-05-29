@@ -5,15 +5,12 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$TaskFile,
 
-  [string]$FindingsFile,
-  [string]$ExistingWorktreePath,
   [string]$SessionId,
   [string]$TaskSlug,
   [string]$ModelProfile,
   [string]$Model,
   [string]$Agent,
   [string]$RunsRoot,
-  [string]$WorktreesRoot,
   [switch]$PrepareOnly
 )
 
@@ -36,36 +33,6 @@ function Invoke-Git {
     throw "git $($Arguments -join ' ') failed: $output"
   }
   return $output
-}
-
-function Resolve-GitReportedPath {
-  param(
-    [Parameter(Mandatory = $true)][string]$WorkingDirectory,
-    [Parameter(Mandatory = $true)][string]$GitPath
-  )
-  if ([IO.Path]::IsPathRooted($GitPath)) {
-    return (Resolve-Path -LiteralPath $GitPath).Path
-  }
-  return (Resolve-Path -LiteralPath (Join-Path $WorkingDirectory $GitPath)).Path
-}
-
-function Get-GitCommonDir {
-  param([Parameter(Mandatory = $true)][string]$WorkingDirectory)
-  $raw = (Invoke-Git -WorkingDirectory $WorkingDirectory -Arguments @('rev-parse', '--git-common-dir') | Select-Object -First 1).Trim()
-  return Resolve-GitReportedPath -WorkingDirectory $WorkingDirectory -GitPath $raw
-}
-
-function Test-IsPathUnder {
-  param(
-    [Parameter(Mandatory = $true)][string]$ChildPath,
-    [Parameter(Mandatory = $true)][string]$ParentPath
-  )
-  $trimChars = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
-  $child = [IO.Path]::GetFullPath($ChildPath).TrimEnd($trimChars)
-  $parent = [IO.Path]::GetFullPath($ParentPath).TrimEnd($trimChars)
-  if ($child.Equals($parent, [StringComparison]::OrdinalIgnoreCase)) { return $true }
-  $parentWithSlash = $parent + [IO.Path]::DirectorySeparatorChar
-  return $child.StartsWith($parentWithSlash, [StringComparison]::OrdinalIgnoreCase)
 }
 
 function ConvertTo-Slug {
@@ -144,19 +111,13 @@ if ([string]::IsNullOrWhiteSpace($Model)) {
 }
 if ([string]::IsNullOrWhiteSpace($Agent)) { $Agent = Get-JsonField -Object $config -Name 'agent' -Default 'codex-worker' }
 if ([string]::IsNullOrWhiteSpace($RunsRoot)) { $RunsRoot = Get-JsonField -Object $config -Name 'runsRoot' -Default (Join-Path $HOME '.codex\runs\codex-opencode-deepseek-workflow') }
-if ([string]::IsNullOrWhiteSpace($WorktreesRoot)) { $WorktreesRoot = Get-JsonField -Object $config -Name 'worktreesRoot' -Default (Join-Path $HOME '.codex\worktrees') }
 
 $repoInput = (Resolve-Path -LiteralPath $RepoPath).Path
 $taskSource = (Resolve-Path -LiteralPath $TaskFile).Path
-$sourceRootRaw = (Invoke-Git -WorkingDirectory $repoInput -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
-$sourceRoot = (Resolve-Path -LiteralPath $sourceRootRaw).Path
-$sourceStatus = Invoke-Git -WorkingDirectory $sourceRoot -Arguments @('status', '--porcelain=v1')
+$targetRootRaw = (Invoke-Git -WorkingDirectory $repoInput -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
+$targetRoot = (Resolve-Path -LiteralPath $targetRootRaw).Path
 
-if ($sourceStatus.Count -gt 0) {
-  throw "Source worktree is not clean. Commit, stash, or discard local changes before delegating to OpenCode."
-}
-
-$repoName = ConvertTo-Slug (Split-Path -Leaf $sourceRoot)
+$repoName = ConvertTo-Slug (Split-Path -Leaf $targetRoot)
 if ([string]::IsNullOrWhiteSpace($TaskSlug)) {
   $TaskSlug = ConvertTo-Slug ([IO.Path]::GetFileNameWithoutExtension($taskSource))
 } else {
@@ -168,55 +129,18 @@ $taskId = "$timestamp-$TaskSlug"
 $runDir = Join-Path $RunsRoot "$repoName-$taskId"
 New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 
-if ($ExistingWorktreePath) {
-  $worktree = (Resolve-Path -LiteralPath $ExistingWorktreePath).Path
-  $worktreeRoot = (Invoke-Git -WorkingDirectory $worktree -Arguments @('rev-parse', '--show-toplevel') | Select-Object -First 1).Trim()
-  $worktree = (Resolve-Path -LiteralPath $worktreeRoot).Path
-  $sourceCommonDir = Get-GitCommonDir -WorkingDirectory $sourceRoot
-  $worktreeCommonDir = Get-GitCommonDir -WorkingDirectory $worktree
-  if (-not $sourceCommonDir.Equals($worktreeCommonDir, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Existing worktree does not belong to the source repository. Source: $sourceRoot Existing: $worktree"
-  }
-  if (-not (Test-Path -LiteralPath $WorktreesRoot -PathType Container)) {
-    throw "Worktrees root does not exist: $WorktreesRoot"
-  }
-  $resolvedWorktreesRoot = (Resolve-Path -LiteralPath $WorktreesRoot).Path
-  if (-not (Test-IsPathUnder -ChildPath $worktree -ParentPath $resolvedWorktreesRoot)) {
-    throw "Existing worktree must be under WorktreesRoot. Existing: $worktree WorktreesRoot: $resolvedWorktreesRoot"
-  }
-  $branch = (Invoke-Git -WorkingDirectory $worktree -Arguments @('branch', '--show-current') | Select-Object -First 1).Trim()
-  if (-not $branch.StartsWith('codex/opencode-', [StringComparison]::Ordinal)) {
-    throw "Existing worktree branch must start with 'codex/opencode-'. Current branch: $branch"
-  }
-} else {
-  New-Item -ItemType Directory -Force -Path $WorktreesRoot | Out-Null
-  $worktree = Join-Path $WorktreesRoot "$repoName-$taskId"
-  if (Test-Path -LiteralPath $worktree) {
-    throw "Worktree path already exists: $worktree"
-  }
-  $branch = "codex/opencode-$taskId"
-  Invoke-Git -WorkingDirectory $sourceRoot -Arguments @('worktree', 'add', '-b', $branch, $worktree, 'HEAD') | Out-Null
-}
-
 $taskCopy = Join-Path $runDir 'AI-DEV-TASK.md'
 Copy-Item -LiteralPath $taskSource -Destination $taskCopy -Force
 
-$findingsCopy = $null
-if ($FindingsFile) {
-  $findingsSource = (Resolve-Path -LiteralPath $FindingsFile).Path
-  $findingsCopy = Join-Path $runDir 'CODEX-REVIEW-FINDINGS.md'
-  Copy-Item -LiteralPath $findingsSource -Destination $findingsCopy -Force
-}
-
 $prompt = @"
-You are the implementation worker using the configured OpenCode model in a Codex-controlled workflow.
+You are the implementation worker using the configured OpenCode model in a Codex-controlled lightweight workflow.
 
 Use the attached AI development task order as the complete implementation contract.
-Modify code only in the current worktree.
-Do not stage, commit, merge, push, create branches, create PRs, or run release steps.
-Do not use shell commands; Codex will run verification after your changes.
+Read any project files you need, then modify code only in the current Git working directory.
+Do not stage, commit, merge, push, create branches, create pull requests, or run release steps.
+Do not use shell commands. The user will review the resulting working tree and run validation manually.
 
-If CODEX-REVIEW-FINDINGS.md is attached, repair only the required findings.
+If the task order is ambiguous or unsafe, stop and explain the blocker instead of guessing.
 "@
 
 $logPath = Join-Path $runDir 'opencode-events.jsonl'
@@ -227,16 +151,15 @@ if (-not $PrepareOnly) {
   $opencode = Get-Command opencode -ErrorAction Stop
   $args = @(
     'run',
-    '--dir', $worktree,
+    $prompt,
+    '--dir', $targetRoot,
     '--agent', $Agent,
     '--model', $Model,
     '--format', 'json',
     '--title', "Codex OpenCode $taskId",
     '--file', $taskCopy
   )
-  if ($findingsCopy) { $args += @('--file', $findingsCopy) }
   if ($SessionId) { $args += @('--session', $SessionId) }
-  $args += $prompt
 
   $previousPreference = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
@@ -251,29 +174,22 @@ if (-not $PrepareOnly) {
   Set-Content -LiteralPath $logPath -Value '{"prepareOnly":true}' -Encoding UTF8
 }
 
-$diffStat = Invoke-Git -WorkingDirectory $worktree -Arguments @('diff', '--stat')
-$status = Invoke-Git -WorkingDirectory $worktree -Arguments @('status', '--short')
-
 $summary = [pscustomobject]@{
   taskId = $taskId
-  sourceRepo = $sourceRoot
-  worktree = $worktree
-  branch = $branch
+  targetRepo = $targetRoot
+  workingDirectory = $targetRoot
   runDir = $runDir
   taskFile = $taskCopy
-  findingsFile = $findingsCopy
   modelProfile = $resolvedModelProfile
   model = $Model
   agent = $Agent
   prepareOnly = [bool]$PrepareOnly
   opencodeExitCode = $exitCode
   opencodeLog = $logPath
-  gitStatus = @($status)
-  gitDiffStat = @($diffStat)
   nextSteps = @(
-    'Codex reviews git diff in the generated worktree.',
-    'Codex runs project verification commands in the generated worktree.',
-    'User runs the project and commits manually only after confirmation.'
+    'User reviews git diff in the current working directory.',
+    'User runs project verification commands manually.',
+    'User commits manually only after confirming the result.'
   )
 }
 

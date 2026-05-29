@@ -90,7 +90,7 @@ $Title
 
 ## 交付物要求
 
-- 在隔离 worktree 中留下未暂存 diff，供 Codex 审查和用户最终确认。
+- 在当前工作区留下未提交修改，供用户人工核查、运行验证并最终确认。
 "@
 
 Set-Content -LiteralPath $OutputPath -Value $content -Encoding UTF8

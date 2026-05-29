@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="本机个人级 Codex OpenCode Worker Workflow，适用于所有 Git 项目：Codex 编排、OpenCode/DeepSeek 执行、Codex 验证验收，用户保留最终 Git 决策。"
+      content="本机个人级 Codex OpenCode Worker Workflow，适用于所有 Git 项目：Codex 生成轻量任务单，OpenCode 在当前工作区执行，用户人工核查并保留最终 Git 决策。"
     />
     <title>Codex OpenCode Worker Workflow</title>
     <style>
@@ -528,9 +528,9 @@
             <span class="eyebrow">本机个人级 · 适用于所有 Git 项目</span>
             <h1>Codex OpenCode Worker Workflow</h1>
             <p class="lead">
-              Codex 负责编排、任务单、diff 审查和验证验收。<br />
-              OpenCode worker 调用配置模型执行代码修改。<br />
-              用户保留运行确认和最终 Git 决策权。
+              Codex 只生成轻量任务单并启动 worker。<br />
+              OpenCode worker 在当前工作区直接修改代码。<br />
+              用户人工核查、运行验证并保留最终 Git 决策权。
             </p>
             <div class="actions">
               <a class="button primary" href="#start">开始使用</a>
@@ -542,12 +542,12 @@
                 <span>默认不 add、commit、push</span>
               </div>
               <div class="stat">
-                <strong>1 diff</strong>
-                <span>交付未提交变更供审查</span>
+                <strong>当前工作区</strong>
+                <span>直接留下未提交修改</span>
               </div>
               <div class="stat">
-                <strong>2 轮</strong>
-                <span>建议最多自动返修两轮</span>
+                <strong>人工核查</strong>
+                <span>由用户运行验证和确认</span>
               </div>
             </div>
           </div>
@@ -561,22 +561,22 @@
               <div class="lane">
                 <div class="lane-label codex">Codex</div>
                 <div class="lane-content">
-                  <strong>编排任务并验收结果</strong>
-                  <span>读取规则、锁定范围、审查 diff、运行验证。</span>
+                  <strong>生成轻量任务单</strong>
+                  <span>减少上下文消耗，只写目标、边界和已知验证。</span>
                 </div>
               </div>
               <div class="lane">
                 <div class="lane-label worker">OpenCode</div>
                 <div class="lane-content">
-                  <strong>调用 worker 模型改代码</strong>
+                  <strong>当前工作区改代码</strong>
                   <span>默认 DeepSeek V4 Pro profile，可切换其它模型。</span>
                 </div>
               </div>
               <div class="lane">
                 <div class="lane-label user">User</div>
                 <div class="lane-content">
-                  <strong>运行确认并决定提交</strong>
-                  <span>最终业务效果和 Git 动作仍由用户负责。</span>
+                  <strong>核查 diff 并决定提交</strong>
+                  <span>最终业务效果、验证命令和 Git 动作仍由用户负责。</span>
                 </div>
               </div>
             </div>
@@ -588,7 +588,7 @@
         <div class="shell">
           <div class="section-head">
             <h2>三步开始</h2>
-              <p>安装 skill，复制 OpenCode agent，然后在任意干净的 Git 项目中显式调用。</p>
+              <p>安装 skill，复制 OpenCode agent，然后在任意 Git 项目中显式调用。</p>
           </div>
           <div class="grid-3">
             <article class="card">
@@ -654,8 +654,7 @@ Copy-Item `
     }
   },
   "agent": "codex-worker",
-  "runsRoot": "",
-  "worktreesRoot": ""
+  "runsRoot": ""
 }</code></pre>
           </div>
         </div>
@@ -664,29 +663,29 @@ Copy-Item `
       <section id="flow" class="section">
         <div class="shell">
           <div class="section-head">
-            <h2>从需求到可审查 diff</h2>
-              <p>Codex 做编排和验收，OpenCode worker 做执行，用户做最终确认。</p>
+            <h2>从需求到当前工作区修改</h2>
+              <p>Codex 做轻量任务单，OpenCode worker 做执行，用户做人工核查。</p>
           </div>
           <div class="grid-4">
             <article class="step">
               <div class="step-number">1</div>
-              <h3>分析项目</h3>
-              <p>Codex 读取 AGENTS、README、manifest、脚本和相关源码。</p>
+              <h3>轻量编排</h3>
+              <p>Codex 避免大范围读代码，只提炼目标、边界和已知约束。</p>
             </article>
             <article class="step">
               <div class="step-number">2</div>
               <h3>写任务单</h3>
-              <p>明确目标、规则、范围、禁止事项、验收标准和验证命令。</p>
+              <p>明确目标、允许范围、禁止事项、验收标准和建议验证命令。</p>
             </article>
             <article class="step">
               <div class="step-number">3</div>
               <h3>执行修改</h3>
-              <p>OpenCode worker 在外部 worktree 中留下未提交 diff。</p>
+              <p>OpenCode worker 在当前 Git 工作区留下未提交修改。</p>
             </article>
             <article class="step">
               <div class="step-number">4</div>
-              <h3>审查返修</h3>
-              <p>Codex 审查 diff、运行验证；必要时输出返修意见并再次调用 worker。</p>
+              <h3>人工核查</h3>
+              <p>用户查看 git diff、运行项目和测试，再决定是否提交。</p>
             </article>
           </div>
         </div>
@@ -698,12 +697,12 @@ Copy-Item `
             <span class="tag amber">Safety</span>
             <h2>默认不接管 Git 决策</h2>
             <p>
-              工具只产出可审查 diff，不自动提交、不推送、不创建 PR。源工作区不干净时会停止，避免覆盖用户本地修改。
+              工具只启动 worker 并保存日志，不自动提交、不推送、不创建 PR。当前工作区已有修改时不会阻断，需要用户自行核查 diff。
             </p>
           </div>
           <ul class="list">
-            <li>任务单、日志、审查意见和执行摘要默认保存到用户级目录。</li>
-            <li>OpenCode worker 只在隔离 worktree 中编辑代码。</li>
+            <li>任务单、日志和执行摘要默认保存到用户级目录。</li>
+            <li>OpenCode worker 只在当前 Git 工作区内编辑代码。</li>
             <li><code>codex-worker</code> 禁止 shell、子任务、外部目录、提交、推送和建 PR。</li>
             <li>API Key 仍由 OpenCode 管理，本工具不读取、不保存、不打印。</li>
           </ul>
@@ -713,7 +712,7 @@ Copy-Item `
 
     <footer class="footer">
       <div class="shell">
-        Codex OpenCode Worker Workflow. Explicit delegation, reviewable diffs, human-owned Git decisions.
+        Codex OpenCode Worker Workflow. Lightweight delegation, current working directory execution, human-owned Git decisions.
       </div>
     </footer>
   </body>

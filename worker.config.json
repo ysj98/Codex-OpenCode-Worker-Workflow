@@ -7,6 +7,5 @@
     }
   },
   "agent": "codex-worker",
-  "runsRoot": "",
-  "worktreesRoot": ""
+  "runsRoot": ""
 }
