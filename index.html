@@ -37,7 +37,8 @@
   html { scroll-behavior: smooth; }
 
   @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-  @keyframes soft-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+  @keyframes gradient-shift { 0%, 100% { background-position: 0% center; } 50% { background-position: 100% center; } }
+  @keyframes underline-reveal { to { transform: scaleX(1); } }
 
   body {
     font-family: var(--font);
@@ -48,6 +49,12 @@
   }
 
   .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  .svg-sprite { display: none; }
+  a, button { touch-action: manipulation; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid rgba(13,148,136,.35);
+    outline-offset: 3px;
+  }
 
   /* nav */
   .nav {
@@ -65,23 +72,16 @@
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text) !important; }
   .brand-icon {
     width: 30px; height: 30px; display: grid; place-items: center;
-    border-radius: 7px; background: var(--accent);
     animation: float 3s ease-in-out infinite;
   }
+  .brand-icon > img { width: 30px; height: 30px; display: block; }
   .nav-links { display: flex; gap: 16px; }
   .nav-links a { font-weight: 500; }
 
   /* hero */
   .hero { padding: 80px 0 64px; text-align: center; }
   .hero-logo { display: block; margin: 0 auto 24px; }
-  .hero-logo > svg { width: 72px; height: 72px; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 12px; border-radius: 20px;
-    background: rgba(13,148,136,.1); color: var(--accent);
-    font-size: 13px; font-weight: 700;
-    animation: float 4s ease-in-out infinite;
-  }
+  .hero-logo > img { width: 72px; height: 72px; display: block; margin: 0 auto; }
   .hero h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.12; margin-top: 16px; letter-spacing: -.02em; }
   .hero h1 .hl {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent) 100%);
@@ -89,10 +89,6 @@
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
     animation: gradient-shift 4s ease-in-out infinite;
-  }
-  @keyframes gradient-shift {
-    0%, 100% { background-position: 0% center; }
-    50% { background-position: 100% center; }
   }
   .hero h1 .sub {
     display: inline-block; position: relative;
@@ -102,9 +98,6 @@
     background: var(--accent); border-radius: 2px;
     transform: scaleX(0); transform-origin: left;
     animation: underline-reveal 1s .6s ease-out forwards;
-  }
-  @keyframes underline-reveal {
-    to { transform: scaleX(1); }
   }
   .hero > .wrap > p { color: var(--muted); font-size: clamp(16px, 2vw, 18px); margin: 14px auto 0; max-width: 560px; }
   .hero-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; justify-content: center; }
@@ -152,6 +145,7 @@
   .tag-warn { color: var(--warn); }
 
   /* code block */
+  .install-code { margin-top: 18px; }
   .code-block {
     border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
   }
@@ -192,6 +186,10 @@
   .step p { color: var(--muted); font-size: 14px; }
 
   /* config table */
+  .section-bordered { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .config-grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  .config-note { color: var(--muted); margin-bottom: 16px; }
+  .code-strong { font-weight: 600; }
   .cfg-table { width: 100%; border-collapse: collapse; }
   .cfg-table th, .cfg-table td {
     padding: 12px 14px; border-bottom: 1px solid var(--border);
@@ -256,12 +254,21 @@
     .hero-stats { gap: 20px; }
     .cards-3, .steps, .adv-grid { grid-template-columns: 1fr; }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: .01ms !important;
+    }
+  }
 </style>
 </head>
 <body>
 
 <!-- SVG icon sprite -->
-<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
@@ -291,13 +298,7 @@
   <div class="wrap">
     <a class="brand" href="#top">
       <span class="brand-icon">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M4 5L2 10L4 15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="5" y1="10" x2="8" y2="10" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="11" cy="10" r="2.2" fill="#fff"/>
-          <line x1="13.5" y1="10" x2="16" y2="10" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-          <polygon points="17,7 17,13 20,10" fill="#fff"/>
-        </svg>
+        <img src="assets/logo.png" alt="" width="30" height="30" />
       </span>
       <span>Codex + OpenCode</span>
     </a>
@@ -306,7 +307,7 @@
       <a href="#flow">工作流</a>
       <a href="#config">模型配置</a>
       <a href="#advantages">核心优势</a>
-      <a href="https://github.com/ysj98/codex-opencode-deepseek-workflow"><svg class="ico"><use href="#i-github"/></svg> GitHub</a>
+      <a href="https://github.com/ysj98/codex-opencode-deepseek-workflow" aria-label="打开 GitHub 仓库"><svg class="ico"><use href="#i-github"/></svg> GitHub</a>
     </nav>
   </div>
 </header>
@@ -317,26 +318,7 @@
   <section class="hero">
     <div class="wrap">
       <div class="hero-logo" data-aos="zoom-in" data-aos-duration="700">
-        <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="lg" x1="0" y1="0" x2="72" y2="72">
-              <stop offset="0%" stop-color="#0d9488"/>
-              <stop offset="100%" stop-color="#4f46e5"/>
-            </linearGradient>
-          </defs>
-          <rect x="0" y="0" width="72" height="72" rx="18" fill="url(#lg)"/>
-          <!-- Codex bracket (left) -->
-          <path d="M16 18L10 36L16 54" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- Workflow connector -->
-          <line x1="20" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-          <!-- Center node -->
-          <circle cx="33" cy="36" r="4.5" fill="#fff"/>
-          <!-- To execution -->
-          <line x1="39" y1="36" x2="47" y2="36" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-          <!-- OpenCode play (right) -->
-          <circle cx="55" cy="36" r="12" stroke="#fff" stroke-width="2.5"/>
-          <polygon points="51.5,31 51.5,41 58,36" fill="#fff"/>
-        </svg>
+        <img src="assets/logo.png" alt="Codex + OpenCode Worker Workflow logo" width="72" height="72" />
       </div>
       <h1 data-aos="fade-up" data-aos-duration="600" data-aos-delay="100">
         <span class="hl">Codex + OpenCode</span><br>
@@ -381,8 +363,8 @@
           <p>普通编码不会自动接管。只有你明确要求该 workflow 时才会调用 OpenCode。</p>
         </div>
       </div>
-      <div class="code-block" style="margin-top:18px" data-aos="fade-up" data-aos-duration="600" data-aos-delay="200">
-        <div class="code-block-title"><svg class="ico ico-sm"><use href="#i-terminal"/></svg> <span>PowerShell 安装命令</span> <button class="copy-btn" onclick="copyCode(this)"><svg class="ico ico-sm"><use href="#i-copy"/></svg> 复制</button></div>
+      <div class="code-block install-code" data-aos="fade-up" data-aos-duration="600" data-aos-delay="200">
+        <div class="code-block-title"><svg class="ico ico-sm"><use href="#i-terminal"/></svg> <span>PowerShell 安装命令</span> <button class="copy-btn" type="button" onclick="copyCode(this)"><svg class="ico ico-sm"><use href="#i-copy"/></svg> 复制</button></div>
 <pre id="install-cmd">git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
   "$HOME\.codex\skills\codex-opencode-deepseek-workflow"
 
@@ -397,7 +379,7 @@ Copy-Item `
   </section>
 
   <!-- 工作流 -->
-  <section id="flow" class="sec" style="border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <section id="flow" class="sec section-bordered">
     <div class="wrap">
       <h2 data-aos="fade-right" data-aos-duration="500"><svg class="ico ico-lg"><use href="#i-git-branch"/></svg> 工作流</h2>
       <p data-aos="fade-up" data-aos-duration="500" data-aos-delay="100">从需求到修改只需四步，人工核查是必须环节。</p>
@@ -429,11 +411,11 @@ Copy-Item `
   <!-- 模型配置 -->
   <section id="config" class="sec">
     <div class="wrap">
-      <div class="cards-2" style="display: grid; gap: 18px; grid-template-columns: 1fr 1fr;">
+      <div class="cards-2 config-grid">
         <div data-aos="fade-right" data-aos-duration="600">
           <h2><svg class="ico ico-lg"><use href="#i-settings"/></svg> 模型配置</h2>
-          <p style="color:var(--muted); margin-bottom:16px;">
-            <code style="font-weight:600;">codex-worker</code> 不绑定模型。修改 <code style="font-weight:600;">worker.config.json</code> 即可切换。
+          <p class="config-note">
+            <code class="code-strong">codex-worker</code> 不绑定模型。修改 <code class="code-strong">worker.config.json</code> 即可切换。
           </p>
           <table class="cfg-table">
             <tr><th>默认</th><td><code>deepseek-v4-pro</code> 指向 <code>deepseek/deepseek-v4-pro</code></td></tr>
@@ -513,22 +495,31 @@ Copy-Item `
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
 (function() {
-  AOS.init({ once: true, offset: 80, duration: 600 });
-
-  var btn = document.getElementById('btt');
-  var show = false;
-  function toggle() {
-    var s = window.scrollY > 400;
-    if (s !== show) { show = s; btn.classList.toggle('show', s); }
+  if (window.AOS) {
+    AOS.init({ once: true, offset: 80, duration: 600 });
   }
+
+  var backToTop = document.getElementById('btt');
+  var isVisible = false;
+
+  function toggle() {
+    var shouldShow = window.scrollY > 400;
+    if (shouldShow !== isVisible) {
+      isVisible = shouldShow;
+      backToTop.classList.toggle('show', shouldShow);
+    }
+  }
+
   window.addEventListener('scroll', toggle, { passive: true });
-  btn.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  backToTop.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
 })();
 
 function copyCode(el) {
   var pre = document.getElementById('install-cmd');
   var text = pre.textContent;
-  navigator.clipboard.writeText(text).then(function() {
+  var copy = navigator.clipboard ? navigator.clipboard.writeText(text) : copyTextFallback(text);
+
+  copy.then(function() {
     el.classList.add('copied');
     var svg = el.querySelector('svg use');
     svg.setAttribute('href', '#i-check');
@@ -536,6 +527,28 @@ function copyCode(el) {
       el.classList.remove('copied');
       svg.setAttribute('href', '#i-copy');
     }, 2000);
+  }).catch(function() {
+    el.focus();
+  });
+}
+
+function copyTextFallback(text) {
+  return new Promise(function(resolve, reject) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+
+    try {
+      document.execCommand('copy') ? resolve() : reject();
+    } catch (err) {
+      reject(err);
+    } finally {
+      document.body.removeChild(area);
+    }
   });
 }
 </script>
