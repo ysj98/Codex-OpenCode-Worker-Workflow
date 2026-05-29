@@ -11,6 +11,7 @@ param(
   [string]$Model,
   [string]$Agent,
   [string]$RunsRoot,
+  [switch]$Background,
   [switch]$PrepareOnly
 )
 
@@ -150,10 +151,62 @@ In your final response, summarize changed files, validation commands and results
 "@
 
 $logPath = Join-Path $runDir 'opencode-events.jsonl'
+$stderrPath = Join-Path $runDir 'opencode-stderr.log'
 $summaryPath = Join-Path $runDir 'worker-summary.json'
+$completionPath = Join-Path $runDir 'worker-completion.json'
+$promptPath = Join-Path $runDir 'worker-prompt.txt'
+$runnerPath = Join-Path $runDir 'invoke-opencode-worker.ps1'
+Set-Content -LiteralPath $promptPath -Value $prompt -Encoding UTF8
 
 $exitCode = 0
-if (-not $PrepareOnly) {
+if ($PrepareOnly) {
+  Set-Content -LiteralPath $logPath -Value '{"prepareOnly":true}' -Encoding UTF8
+  Set-Content -LiteralPath $stderrPath -Value '' -Encoding UTF8
+} elseif ($Background) {
+  $opencode = Get-Command opencode -ErrorAction Stop
+  $escapedPromptPath = $promptPath.Replace("'", "''")
+  $escapedTargetRoot = $targetRoot.Replace("'", "''")
+  $escapedAgent = $Agent.Replace("'", "''")
+  $escapedModel = $Model.Replace("'", "''")
+  $escapedTaskCopy = $taskCopy.Replace("'", "''")
+  $escapedSessionId = if ($SessionId) { $SessionId.Replace("'", "''") } else { '' }
+  $escapedOpencode = $opencode.Source.Replace("'", "''")
+  $escapedLogPath = $logPath.Replace("'", "''")
+  $escapedStderrPath = $stderrPath.Replace("'", "''")
+  $escapedCompletionPath = $completionPath.Replace("'", "''")
+  $runner = @"
+`$ErrorActionPreference = 'Continue'
+`$prompt = Get-Content -Raw -LiteralPath '$escapedPromptPath'
+`$args = @(
+    'run',
+    `$prompt,
+    '--dir', '$escapedTargetRoot',
+    '--agent', '$escapedAgent',
+    '--model', '$escapedModel',
+    '--format', 'json',
+    '--title', 'Codex OpenCode $taskId',
+    '--file', '$escapedTaskCopy'
+  )
+if ('$escapedSessionId') { `$args += @('--session', '$escapedSessionId') }
+
+`$startedAt = Get-Date -Format o
+`$output = & '$escapedOpencode' @args 2> '$escapedStderrPath'
+`$exitCode = `$LASTEXITCODE
+`$output | Set-Content -LiteralPath '$escapedLogPath' -Encoding UTF8
+[pscustomobject]@{
+  status = if (`$exitCode -eq 0) { 'completed' } else { 'failed' }
+  startedAt = `$startedAt
+  completedAt = Get-Date -Format o
+  opencodeExitCode = `$exitCode
+  opencodeLog = '$escapedLogPath'
+  opencodeStderr = '$escapedStderrPath'
+} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath '$escapedCompletionPath' -Encoding UTF8
+"@
+  Set-Content -LiteralPath $runnerPath -Value $runner -Encoding UTF8
+  Set-Content -LiteralPath $logPath -Value '{"status":"background-started"}' -Encoding UTF8
+  Set-Content -LiteralPath $stderrPath -Value '' -Encoding UTF8
+  $process = Start-Process -FilePath 'powershell' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $runnerPath) -WindowStyle Hidden -PassThru
+} else {
   $opencode = Get-Command opencode -ErrorAction Stop
   $args = @(
     'run',
@@ -170,14 +223,19 @@ if (-not $PrepareOnly) {
   $previousPreference = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
   try {
-    $opencodeOutput = & $opencode.Source @args 2>&1
+    $opencodeOutput = & $opencode.Source @args 2>$stderrPath
     $exitCode = $LASTEXITCODE
   } finally {
     $ErrorActionPreference = $previousPreference
   }
   $opencodeOutput | Set-Content -LiteralPath $logPath -Encoding UTF8
-} else {
-  Set-Content -LiteralPath $logPath -Value '{"prepareOnly":true}' -Encoding UTF8
+  [pscustomobject]@{
+    status = if ($exitCode -eq 0) { 'completed' } else { 'failed' }
+    completedAt = Get-Date -Format o
+    opencodeExitCode = $exitCode
+    opencodeLog = $logPath
+    opencodeStderr = $stderrPath
+  } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $completionPath -Encoding UTF8
 }
 
 $summary = [pscustomobject]@{
@@ -190,12 +248,19 @@ $summary = [pscustomobject]@{
   model = $Model
   agent = $Agent
   prepareOnly = [bool]$PrepareOnly
-  opencodeExitCode = $exitCode
+  background = [bool]$Background
+  status = if ($PrepareOnly) { 'prepared' } elseif ($Background) { 'running' } elseif ($exitCode -eq 0) { 'completed' } else { 'failed' }
+  processId = if ($Background -and $process) { $process.Id } else { $null }
+  opencodeExitCode = if ($Background) { $null } else { $exitCode }
   opencodeLog = $logPath
+  opencodeStderr = $stderrPath
+  completionFile = $completionPath
+  promptFile = $promptPath
+  runnerScript = if ($Background) { $runnerPath } else { $null }
   nextSteps = @(
-    'User reviews git diff in the current working directory.',
-    'User reviews the worker validation summary and may rerun verification manually.',
-    'User commits manually only after confirming the result.',
+    'If background is true, use scripts/check-opencode-worker.ps1 with this runDir to check status later.',
+    'User reviews git diff in the current working directory after the worker completes.',
+    'User reviews the worker validation summary and may rerun verification manually after completion.',
     'Codex does not perform final diff review, business validation, or Git finalization in this workflow.'
   )
 }
@@ -203,6 +268,6 @@ $summary = [pscustomobject]@{
 $summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 $summary | ConvertTo-Json -Depth 8
 
-if ($exitCode -ne 0) {
+if ((-not $Background) -and $exitCode -ne 0) {
   throw "opencode run failed with exit code $exitCode. See $logPath"
 }
