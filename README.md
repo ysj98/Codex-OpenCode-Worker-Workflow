@@ -1,6 +1,6 @@
 # Codex OpenCode Worker Workflow
 
-一个本地个人级 Codex skill。它的唯一目标是：尽可能减少 Codex 的 token/费用消耗，同时利用 Codex 的任务拆解与安全边界能力，把实际读仓库和改代码的高消耗工作交给 OpenCode worker，例如 DeepSeek。
+一个本地个人级 Codex skill。它的目标是：尽可能减少 Codex 的 token/费用消耗，同时让 Codex 用自己的推理能力为 OpenCode/DeepSeek 写出高质量施工方案。实际读仓库、改代码、跑验证的高消耗工作交给 OpenCode worker。
 
 默认模型 profile 是 DeepSeek V4 Pro，但 `codex-worker` 本身不绑定模型。以后切换到其他 OpenCode 模型时，只改 `worker.config.json` 或脚本参数即可，不需要改 agent。
 
@@ -8,21 +8,21 @@
 
 ## 它解决什么问题
 
-传统 Codex 实现任务通常会消耗在这些环节：
+传统让 Codex 直接实现任务时，消耗通常集中在：
 
-- 读取大量项目上下文
-- 推断架构和实现细节
+- 大范围读取项目上下文
+- 设计实现细节
 - 修改代码
-- 复核 diff
-- 运行验证并修复
+- 运行验证和修复
+- 复核最终 diff
 
-这个 workflow 刻意把 Codex 压缩成一个轻量调度器：
+这个 workflow 把分工改成：
 
-- **Codex**：只生成短任务单、启动 OpenCode、报告结果和日志位置。
-- **OpenCode worker 模型**：读取它需要的项目上下文，并在当前 Git 工作区改代码。
-- **用户**：人工查看 `git diff`、运行项目/测试、确认 UI 或业务效果，并决定是否 `git add/commit/push`。
+- **Codex**：做定向侦察，理解需求，写施工级 `AI-DEV-TASK.md`，启动 worker，报告日志。
+- **OpenCode worker 模型**：大量读取、搜索、实现、运行测试/构建/类型检查，并总结验证结果。
+- **用户**：人工查看 `git diff`，确认 UI 或业务效果，并决定是否 `git add/commit/push`。
 
-它不会让 Codex 复核 diff、不会自动二次修复、不会自动提交 Git。这样能明显降低 Codex 消耗，但也意味着人工核查是必需步骤。
+这样 Codex 消耗保持可控，但不会放弃 Codex 的架构判断和任务拆解能力。
 
 ## 快速开始
 
@@ -79,32 +79,31 @@ deepseek/deepseek-v4-pro
 或者：
 
 ```text
-用 OpenCode + DeepSeek 执行，Codex 只负责写任务单和启动 worker：
+用 OpenCode + DeepSeek 执行。Codex 先做定向侦察并写详细任务单，worker 负责实现和验证：
 ...
 ```
 
-Codex 会生成轻量 `AI-DEV-TASK.md`，再调用 OpenCode worker 在当前工作区留下未提交修改。之后由你人工核查 `git diff`、运行项目和测试。
+Codex 会读取少量关键文件，生成施工级 `AI-DEV-TASK.md`，再调用 OpenCode worker 在当前工作区留下未提交修改。之后由你人工核查 `git diff`、确认 worker 的验证结果，并决定是否提交。
 
 ## 工作流
 
 ```mermaid
 flowchart LR
-  A["用户提出需求"] --> B["Codex 写轻量任务单"]
-  B --> C["Codex 启动 OpenCode worker"]
-  C --> D["Worker 读取项目并改代码"]
-  D --> E["用户人工查看 git diff"]
-  E --> F["用户运行验证"]
+  A["用户提出需求"] --> B["Codex 定向侦察"]
+  B --> C["Codex 写施工级任务单"]
+  C --> D["OpenCode/DeepSeek 大量执行"]
+  D --> E["Worker 运行验证并总结"]
+  E --> F["用户人工查看 git diff"]
   F --> G["用户决定 Git 操作"]
 ```
 
-## Codex 低消耗原则
+## Codex 低消耗但高指导原则
 
-- Codex 不做大范围项目分析。
-- Codex 不预先替 worker 设计完整实现。
-- Codex 不跑 `git diff`、测试、构建、浏览器检查或修复循环。
-- Codex 只写目标、边界、禁止事项、验收标准和已知验证建议。
-- 任务单尽量短，通常不超过 120 行。
-- 如果 worker 失败，Codex 只报告日志和退出码，不自动重试。
+- Codex 默认读取指导文件、manifest/config 和最多 8 个明显相关文件。
+- Codex 写出实现路线、入口线索、风险边界和验证建议。
+- Codex 不直接改代码，不做全仓扫描，不复核最终 diff。
+- OpenCode/DeepSeek 可以大量消耗 token 做仓库阅读、搜索、实现和验证。
+- worker 可以运行测试、构建、类型检查和 lint，但不能提交、推送、建 PR 或发布。
 
 ## 模型配置
 
@@ -162,23 +161,25 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 `AI-DEV-TASK.md` 固定包含：
 
 - 任务目标
-- 当前项目背景
-- 必须遵守的项目规则
+- Codex 定向侦察摘要
+- 关键文件与入口线索
+- 建议实现路线
+- Worker 执行步骤
+- 风险与边界
 - 允许修改范围
 - 禁止事项
-- 实现要求
 - 验收标准
 - 建议验证命令
 - 交付物要求
 
-任务单应该尽量短，只写目标、边界、禁止事项和已知验证方式。不要把 Codex 的长分析塞进任务单。
+任务单应该能指导 worker 施工：先看哪些文件、怎么定位调用链、建议怎么改、注意哪些兼容点、跑哪些验证。
 
 ## 安全边界
 
 - 不自动 `git add`、`commit`、`push`。
 - 不自动创建 PR。
-- 不使用 OpenCode 自动权限批准或危险权限跳过模式。
-- `codex-worker` 禁止 shell、子任务、外部目录、提交、推送和建 PR。
+- 不执行发布步骤。
+- `codex-worker` 允许验证命令，但显式禁止 Git 提交/推送/重置、PR、发布、危险删除和 secret 读取类命令。
 - 任务单、日志和执行摘要默认保存到用户级目录，不写入业务仓库。
 - API key 由 OpenCode 管理；本工具不读取、不保存、不打印。
 - 当前工作区已有修改时不会阻断；你需要自行区分旧 diff 和 worker 新 diff。
@@ -228,13 +229,13 @@ codex-opencode-deepseek-workflow/
 
 不会。它只是一个可选 agent，不会修改你的供应商连接、API key、默认模型或默认 agent。
 
-### 为什么不要求工作区干净？
+### 为什么允许 worker 运行验证命令？
 
-这是为了减少流程和 token 消耗，让 OpenCode 直接在当前工作区执行。代价是已有修改和 worker 修改会出现在同一个 diff 里，需要你人工核查。
+因为这个 workflow 的目标是让 OpenCode/DeepSeek 承担主要 token 和执行成本。worker 可以跑测试、构建、类型检查等验证命令，把结果总结给用户。
 
-### 为什么不自动验收？
+### 为什么仍然不自动提交？
 
-这个 skill 的目标是降低 Codex 消耗，而不是替代完整工程闭环。最终运行效果和业务正确性必须由用户确认。
+最终运行效果和业务正确性必须由用户确认。worker 可以验证，但 Git 决策仍由用户掌握。
 
 ## License
 

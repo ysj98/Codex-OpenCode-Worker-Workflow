@@ -133,15 +133,20 @@ $taskCopy = Join-Path $runDir 'AI-DEV-TASK.md'
 Copy-Item -LiteralPath $taskSource -Destination $taskCopy -Force
 
 $prompt = @"
-You are the implementation worker using the configured OpenCode model in a low-Codex-consumption workflow.
+You are the implementation and verification worker using the configured OpenCode model in a low-Codex-consumption workflow.
 
-Use the attached AI development task order as the complete implementation contract.
-Codex has intentionally avoided broad repository analysis to save its own tokens.
-Read only the project files you need, then modify code only in the current Git working directory.
+Use the attached AI development task order as the implementation contract and starting plan.
+Codex has intentionally performed only bounded targeted reconnaissance to save its own tokens.
+You may spend substantial worker-model tokens reading project files, searching, tracing call paths, implementing, and running validation commands.
+
+Follow the task order's suggested route, but verify every assumption against the repository before changing code.
+Modify code only in the current Git working directory.
+Run appropriate tests, builds, type checks, linters, or focused validation commands when available.
 Do not stage, commit, merge, push, create branches, create pull requests, or run release steps.
-Do not use shell commands. The user will review the resulting working tree and run validation manually.
+Do not read, print, or store secrets or API keys.
 
-If the task order is ambiguous or unsafe, stop and explain the blocker instead of guessing.
+If the task order is ambiguous, contradicted by the repository, or unsafe, stop and explain the blocker instead of guessing.
+In your final response, summarize changed files, validation commands and results, remaining risks, and any blocker.
 "@
 
 $logPath = Join-Path $runDir 'opencode-events.jsonl'
@@ -189,9 +194,9 @@ $summary = [pscustomobject]@{
   opencodeLog = $logPath
   nextSteps = @(
     'User reviews git diff in the current working directory.',
-    'User runs project verification commands manually.',
+    'User reviews the worker validation summary and may rerun verification manually.',
     'User commits manually only after confirming the result.',
-    'Codex does not perform diff review, validation, or automatic repair rounds in this lightweight workflow.'
+    'Codex does not perform final diff review, business validation, or Git finalization in this workflow.'
   )
 }
 
