@@ -479,7 +479,7 @@
         <a href="#start">快速开始</a>
         <a href="#flow">工作流</a>
         <a href="#config">模型配置</a>
-        <a href="https://github.com/ysj98/codex-opencode-deepseek-workflow">GitHub</a>
+        <a href="https://github.com/ysj98/Codex-OpenCode-Worker-Workflow">GitHub</a>
       </nav>
     </div>
   </header>
@@ -493,14 +493,14 @@
           <p data-reveal>这个 skill 让 Codex 做定向侦察、架构判断和任务拆解，然后后台启动 OpenCode worker，把仓库阅读、代码修改和验证命令交给 DeepSeek 慢慢消耗。</p>
           <div class="actions" data-reveal>
             <a class="btn primary" href="#start">开始使用</a>
-            <a class="btn secondary" href="https://github.com/ysj98/codex-opencode-deepseek-workflow">查看仓库</a>
+            <a class="btn secondary" href="https://github.com/ysj98/Codex-OpenCode-Worker-Workflow">查看仓库</a>
           </div>
         </div>
         <aside class="hero-panel" data-reveal aria-label="核心分工">
           <img src="assets/logo.png" alt="Codex OpenCode Worker Workflow logo" />
           <div class="metric" data-reveal><strong>Codex</strong><span>少量定向侦察，写出实现路线，启动后台 worker 后立刻返回。</span></div>
           <div class="metric" data-reveal><strong>Worker</strong><span>后台大量读代码、搜索、实现、运行测试/构建/类型检查。</span></div>
-          <div class="metric" data-reveal><strong>检查</strong><span>后续只读取 summary 和日志尾部，避免完整日志消耗 Codex token。</span></div>
+          <div class="metric" data-reveal><strong>按需检查</strong><span>只有用户明确要求时才读取 summary；日志尾部也需要显式开启。</span></div>
           <div class="metric" data-reveal><strong>安全</strong><span>允许验证命令，禁止提交、推送、PR、发布和 secret 读取。</span></div>
         </aside>
       </div>
@@ -514,7 +514,7 @@
           <article class="card" data-reveal>
             <span class="tag indigo">Step 1</span>
             <h3>安装 skill</h3>
-            <p>把仓库克隆到 Codex skills 目录，Codex 就能识别 `$codex-opencode-deepseek-workflow`。</p>
+            <p>把仓库克隆到 Codex skills 目录，Codex 就能识别 `$codex-opencode-worker-workflow`。</p>
           </article>
           <article class="card" data-reveal>
             <span class="tag teal">Step 2</span>
@@ -532,13 +532,13 @@
             <span>PowerShell 安装命令</span>
             <button class="copy" type="button" onclick="copyInstall(this)">复制</button>
           </div>
-<pre id="install-code">git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
-  "$HOME\.codex\skills\codex-opencode-deepseek-workflow"
+<pre id="install-code">git clone https://github.com/ysj98/Codex-OpenCode-Worker-Workflow.git `
+  "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow"
 
 New-Item -ItemType Directory -Force "$HOME\.config\opencode\agents" | Out-Null
 
 Copy-Item `
-  "$HOME\.codex\skills\codex-opencode-deepseek-workflow\opencode\agents\codex-worker.md" `
+  "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\opencode\agents\codex-worker.md" `
   "$HOME\.config\opencode\agents\codex-worker.md" `
   -Force</pre>
         </div>
@@ -555,7 +555,7 @@ Copy-Item `
           <div class="step" data-reveal><b>3</b><h3>施工任务单</h3><p>Codex 写入口线索、实现路线、风险和验证建议。</p></div>
           <div class="step" data-reveal><b>4</b><h3>后台启动</h3><p>Codex 返回 runDir、PID、任务单和日志路径。</p></div>
           <div class="step" data-reveal><b>5</b><h3>大量执行</h3><p>worker 修改代码并运行测试、构建、类型检查或 lint。</p></div>
-          <div class="step" data-reveal><b>6</b><h3>轻量检查</h3><p>只读取 summary 和日志尾部，再由用户决定 Git 操作。</p></div>
+          <div class="step" data-reveal><b>6</b><h3>人工验收</h3><p>默认不检查；用户需要时再读取轻量状态，并人工决定 Git 操作。</p></div>
         </div>
       </div>
     </section>

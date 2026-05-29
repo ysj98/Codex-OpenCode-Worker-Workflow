@@ -12,6 +12,7 @@
   [string]$Agent,
   [string]$RunsRoot,
   [switch]$Background,
+  [switch]$Foreground,
   [switch]$PrepareOnly
 )
 
@@ -158,11 +159,14 @@ $promptPath = Join-Path $runDir 'worker-prompt.txt'
 $runnerPath = Join-Path $runDir 'invoke-opencode-worker.ps1'
 Set-Content -LiteralPath $promptPath -Value $prompt -Encoding UTF8
 
+$effectiveBackground = (-not [bool]$Foreground) -and (-not [bool]$PrepareOnly)
+if ([bool]$Background) { $effectiveBackground = $true }
+
 $exitCode = 0
 if ($PrepareOnly) {
   Set-Content -LiteralPath $logPath -Value '{"prepareOnly":true}' -Encoding UTF8
   Set-Content -LiteralPath $stderrPath -Value '' -Encoding UTF8
-} elseif ($Background) {
+} elseif ($effectiveBackground) {
   $opencode = Get-Command opencode -ErrorAction Stop
   $escapedPromptPath = $promptPath.Replace("'", "''")
   $escapedTargetRoot = $targetRoot.Replace("'", "''")
@@ -248,15 +252,16 @@ $summary = [pscustomobject]@{
   model = $Model
   agent = $Agent
   prepareOnly = [bool]$PrepareOnly
-  background = [bool]$Background
-  status = if ($PrepareOnly) { 'prepared' } elseif ($Background) { 'running' } elseif ($exitCode -eq 0) { 'completed' } else { 'failed' }
-  processId = if ($Background -and $process) { $process.Id } else { $null }
-  opencodeExitCode = if ($Background) { $null } else { $exitCode }
+  background = [bool]$effectiveBackground
+  foreground = [bool]$Foreground
+  status = if ($PrepareOnly) { 'prepared' } elseif ($effectiveBackground) { 'running' } elseif ($exitCode -eq 0) { 'completed' } else { 'failed' }
+  processId = if ($effectiveBackground -and $process) { $process.Id } else { $null }
+  opencodeExitCode = if ($effectiveBackground) { $null } else { $exitCode }
   opencodeLog = $logPath
   opencodeStderr = $stderrPath
   completionFile = $completionPath
   promptFile = $promptPath
-  runnerScript = if ($Background) { $runnerPath } else { $null }
+  runnerScript = if ($effectiveBackground) { $runnerPath } else { $null }
   nextSteps = @(
     'Codex should stop after returning this summary; do not poll, wait, inspect logs, validate, or summarize worker progress unless the user explicitly asks.',
     'If the user explicitly asks to check later, use scripts/check-opencode-worker.ps1 with this runDir.',
@@ -269,6 +274,6 @@ $summary = [pscustomobject]@{
 $summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 $summary | ConvertTo-Json -Depth 8
 
-if ((-not $Background) -and $exitCode -ne 0) {
+if ((-not $effectiveBackground) -and $exitCode -ne 0) {
   throw "opencode run failed with exit code $exitCode. See $logPath"
 }

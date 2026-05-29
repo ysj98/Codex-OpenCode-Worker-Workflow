@@ -10,8 +10,8 @@ description: >-
   low-Codex-cost delegated coding. Codex acts as architect/planner: perform
   bounded targeted reconnaissance, write a construction-grade AI development
   task order, launch OpenCode in the current Git working directory, return run
-  artifacts immediately by default, and leave final review and Git decisions to
-  the user.
+  artifacts immediately, and leave execution, validation, final review, and Git
+  decisions outside the active Codex turn.
 ---
 
 # Codex OpenCode Worker Workflow
@@ -25,8 +25,8 @@ model.
 
 The token-heavy work belongs to OpenCode with the configured worker model,
 usually DeepSeek: broad repository reading, searches, implementation, focused
-validation, and verification. The default run mode is async-first so Codex does
-not wait while the worker spends tokens.
+validation, and worker-side completion notes. Codex must return immediately
+after launch and must not remain in the turn to watch the worker.
 
 ## Trigger
 
@@ -45,20 +45,20 @@ OpenCode or a worker model.
 
 ## Core Contract
 
-- Codex is the architect/planner, not the implementer.
+- Codex is the architect/planner, not the implementer or verifier.
 - OpenCode/DeepSeek is the implementer/verifier and may spend substantial
   tokens reading, searching, editing, and running focused validation commands.
-- Default to background worker execution: Codex launches the worker, reports the
-  run directory and process id, then stops.
-- After reporting a background worker launch, Codex must not poll, wait, inspect
-  logs, validate, infer what the worker is doing, or summarize worker progress
-  unless the user explicitly asks.
+- Codex does bounded targeted reconnaissance, writes the task order, launches
+  the worker, reports artifacts, then stops.
+- Codex must not poll, wait, inspect logs, validate, infer what the worker is
+  doing, summarize progress, or read worker output after launch unless the user
+  explicitly asks a later follow-up question.
 - Keep task orders, logs, and summaries outside the target project by default.
 - Let OpenCode modify code directly in the current Git working directory.
 - Leave final diff review, business validation, staging, commits, pushes, and
   PRs to the user.
 
-## Codex Reconnaissance Budget
+## Codex Token Budget
 
 Pick the lightest mode that can produce a useful task order:
 
@@ -74,19 +74,6 @@ analysis, implement code, run final validation, or review the worker's final
 diff in this workflow. Spend Codex tokens on the implementation strategy and
 boundaries; let the worker spend tokens on execution.
 
-## Roles
-
-- Codex: confirm the target is a Git repo, do bounded targeted reconnaissance,
-  write a construction-grade task order, launch OpenCode in the background,
-  report artifacts, then stop.
-- OpenCode worker model: follow the task order, discover additional context,
-  implement the change, run only focused and reasonably bounded validation
-  commands, and briefly report changed files, commands run, pass/fail status,
-  and blockers.
-- User: later inspect `git diff`, check the worker summary, confirm
-  runtime/business behavior, and decide whether to `git add`, `commit`, `push`,
-  or create a PR.
-
 ## Workflow
 
 1. Confirm the target path is inside a Git repository.
@@ -99,20 +86,21 @@ boundaries; let the worker spend tokens on execution.
    - Be specific enough that OpenCode/DeepSeek can execute efficiently.
    - Do not claim the suggested route is exhaustive; instruct the worker to
      verify by reading the code.
-4. Run `scripts/run-opencode-worker.ps1` with `-Background` by default.
+4. Run `scripts/run-opencode-worker.ps1`. The script is async-first and starts
+   the worker in the background by default.
+   - Passing `-Background` is allowed for clarity, but not required.
+   - Use `-Foreground` only if the user explicitly asks Codex to wait for the
+     worker to finish.
    - The script launches `opencode run <message> --dir <repo-root> --agent
-<configured-agent> --model <configured-model> --file <task>`.
-   - Background mode writes logs and completion state under the run directory,
-     returns JSON immediately, and avoids Codex waiting for worker completion.
-   - Only omit `-Background` when the user explicitly asks Codex to wait.
-5. Final output must include the target repo path, run directory, task file,
-   OpenCode log path, worker status, process id, model, and the check command.
-6. Stop immediately after that final output. Do not continue waiting or checking
-   progress inside the same turn.
-7. When the user later asks to check progress, run
+     <configured-agent> --model <configured-model> --file <task>`.
+5. Final output must include only the target repo path, run directory, task
+   file, OpenCode log path, worker status, process id, and model.
+6. Stop immediately after that final output. Do not continue waiting, checking,
+   validating, or summarizing progress inside the same turn.
+7. When the user later explicitly asks to check progress, run
    `scripts/check-opencode-worker.ps1 -RunDir <runDir>`.
-   - Default check reads `worker-summary.json`, optional `worker-completion.json`,
-     and process status only.
+   - Default check reads `worker-summary.json`, optional
+     `worker-completion.json`, and process status only.
    - Add `-IncludeLogTail` only when the user explicitly asks for logs.
    - Do not read or paste the full OpenCode log unless the user explicitly asks.
 
@@ -183,7 +171,6 @@ Use a compact final response:
 
 ```text
 已在后台启动 OpenCode worker。
-
 目标仓库: <path>
 模型: <model>
 状态: <status>
@@ -192,10 +179,8 @@ PID: <processId>
 任务单: <taskFile>
 日志: <opencodeLog>
 
-稍后检查:
-powershell -NoProfile -ExecutionPolicy Bypass -File "<skill>/scripts/check-opencode-worker.ps1" -RunDir "<runDir>"
-
-此 workflow 不等待 worker 完成、不主动检查进度、不自动提交 Git。worker 完成后请人工查看 git diff。
+Codex 已停止跟踪本次 worker：不等待完成、不主动检查进度、不读取日志、不验证、不总结。
+worker 完成后请人工查看 git diff；只有你之后明确要求检查时，我才读取轻量状态。
 ```
 
 ## Resources
@@ -203,10 +188,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<skill>/scripts/check-openc
 - `scripts/new-ai-task.ps1`: create a construction-grade task-order template in
   the user-level run directory.
 - `scripts/run-opencode-worker.ps1`: invoke OpenCode in the current Git working
-  directory and save run artifacts; pass `-Background` for the default optimized
-  async mode.
+  directory and save run artifacts; background execution is the default.
 - `scripts/check-opencode-worker.ps1`: check a background worker run using
-  summary files and a bounded log tail.
+  summary files; log tail is opt-in only.
 - `worker.config.json`: model profiles, default model profile, agent, and run
   directory.
 - `opencode/agents/codex-worker.md`: OpenCode worker agent permissions and

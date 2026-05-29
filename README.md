@@ -1,12 +1,10 @@
 # Codex OpenCode Worker Workflow
 
-一个本地个人级 Codex skill。它的目标是：尽可能减少 Codex 的 token/费用消耗，同时让 Codex 用自己的推理能力为 OpenCode/DeepSeek 写出高质量施工方案。实际读仓库、改代码、跑验证的高消耗工作交给 OpenCode worker。
+一个本地个人级 Codex skill。目标是尽可能减少 Codex 的 token/费用消耗，同时让 Codex 用自己的推理能力为 OpenCode/DeepSeek 写出高质量施工方案。实际读仓库、改代码、跑验证的高消耗工作交给 OpenCode worker。
 
-默认运行方式是后台启动 worker：Codex 创建任务单并启动 OpenCode 后立刻返回 runDir、PID 和日志路径，不陪 DeepSeek 慢慢跑。
+默认运行方式是后台启动 worker：Codex 创建任务单并启动 OpenCode 后立刻返回 runDir、PID 和日志路径，不陪 DeepSeek 慢慢跑，也不主动检查进度、读取日志、验证或总结。
 
-默认模型 profile 是 DeepSeek V4 Pro，但 `codex-worker` 本身不绑定模型。以后切换到其他 OpenCode 模型时，只改 `worker.config.json` 或脚本参数即可，不需要改 agent。
-
-仓库地址：[ysj98/codex-opencode-deepseek-workflow](https://github.com/ysj98/codex-opencode-deepseek-workflow)
+仓库地址：[ysj98/Codex-OpenCode-Worker-Workflow](https://github.com/ysj98/Codex-OpenCode-Worker-Workflow)
 
 ## 它解决什么问题
 
@@ -20,19 +18,17 @@
 
 这个 workflow 把分工改成：
 
-- **Codex**：做定向侦察，理解需求，写施工级 `AI-DEV-TASK.md`，后台启动 worker，立刻报告日志。
-- **OpenCode worker 模型**：大量读取、搜索、实现，并只运行聚焦且耗时可控的验证命令。
-- **用户**：稍后检查 worker 状态，人工查看 `git diff`，确认效果，并决定是否 `git add/commit/push`。
-
-这样 Codex 消耗保持可控，等待时间也短得多。
+- **Codex**：做少量定向侦察，写施工级 `AI-DEV-TASK.md`，后台启动 worker，然后停止。
+- **OpenCode worker 模型**：大量读取、搜索、实现，并运行聚焦且耗时可控的验证命令。
+- **用户**：稍后人工查看 `git diff`、确认效果，并决定是否 `git add/commit/push`。
 
 ## 快速开始
 
 ### 1. 安装 skill
 
 ```powershell
-git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
-  "$HOME\.codex\skills\codex-opencode-deepseek-workflow"
+git clone https://github.com/ysj98/Codex-OpenCode-Worker-Workflow.git `
+  "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow"
 ```
 
 ### 2. 安装 OpenCode worker agent
@@ -41,12 +37,10 @@ git clone https://github.com/ysj98/codex-opencode-deepseek-workflow.git `
 New-Item -ItemType Directory -Force "$HOME\.config\opencode\agents" | Out-Null
 
 Copy-Item `
-  "$HOME\.codex\skills\codex-opencode-deepseek-workflow\opencode\agents\codex-worker.md" `
+  "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\opencode\agents\codex-worker.md" `
   "$HOME\.config\opencode\agents\codex-worker.md" `
   -Force
 ```
-
-`codex-worker` 只是一个可选 agent。只有脚本显式调用 `opencode run --agent codex-worker`，或你在 OpenCode 界面主动选择它时，它才会生效。
 
 ### 3. 确认 OpenCode 模型可用
 
@@ -74,27 +68,36 @@ deepseek/deepseek-v4-pro
 在任意 Git 项目中对 Codex 说：
 
 ```text
-使用 $codex-opencode-deepseek-workflow，帮我实现这个需求：
+使用 Codex OpenCode Worker Workflow，帮我实现这个需求：
 ...
 ```
 
-或者：
+或使用机器触发名：
 
 ```text
-用 OpenCode + DeepSeek 执行。Codex 先做定向侦察并写详细任务单，后台启动 worker：
+使用 $codex-opencode-worker-workflow，帮我实现这个需求：
 ...
 ```
 
 Codex 会读取少量关键文件，生成施工级 `AI-DEV-TASK.md`，再后台调用 OpenCode worker。你会立即拿到 runDir、PID、任务单和日志路径。
 
+## 省 Codex token 的关键约束
+
+- Codex 默认只做 `guided` 侦察：指导文件、manifest/config，以及最多 5 个明显相关文件。
+- 小任务可用 `fast`：只读指导文件和 manifest/config。
+- 风险任务才用 `deep-plan`：最多 12 个相关文件。
+- Codex 不直接改代码，不做全仓扫描，不等待 worker 完成，不主动检查进度，不复核最终 diff。
+- worker 启动后，Codex 不读取日志、不验证、不总结 worker 进度。
+- OpenCode/DeepSeek 可以大量消耗 token 做仓库阅读、搜索、实现和验证。
+
 ## 检查 worker 状态
 
-后台 worker 运行时，Codex 不会主动轮询、等待、验证或总结。需要检查时，使用轻量检查脚本：
+默认不检查。只有你明确要求时，才运行轻量检查脚本：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$HOME\.codex\skills\codex-opencode-deepseek-workflow\scripts\check-opencode-worker.ps1" `
-  -RunDir "C:\Users\you\.codex\runs\codex-opencode-deepseek-workflow\your-run-dir"
+  -File "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\scripts\check-opencode-worker.ps1" `
+  -RunDir "C:\Users\you\.codex\runs\codex-opencode-worker-workflow\your-run-dir"
 ```
 
 默认只读取 `worker-summary.json`、完成状态和进程状态，不读取日志尾部。确实需要看日志时再加：
@@ -108,45 +111,11 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```mermaid
 flowchart LR
   A["用户提出需求"] --> B["Codex 定向侦察"]
-  B --> C["Codex 写施工级任务单"]
+  B --> C["Codex 写施工任务单"]
   C --> D["Codex 后台启动 worker 并返回"]
   D --> E["OpenCode/DeepSeek 大量执行"]
-  E --> F["用户/Codex 轻量检查状态"]
+  E --> F["用户按需轻量检查"]
   F --> G["用户人工查看 git diff"]
-```
-
-## Codex 低消耗但高指导原则
-
-- Codex 默认用 `guided` 侦察：读取指导文件、manifest/config 和最多 5 个相关文件。
-- 小任务可用 `fast`：只读指导文件和 manifest/config。
-- 风险任务可用 `deep-plan`：最多 12 个相关文件，但只在明确需要时使用。
-- Codex 写出实现路线、入口线索、风险边界和验证建议。
-- Codex 不直接改代码，不做全仓扫描，不等待 worker 完成，不主动检查进度，不复核最终 diff。
-- OpenCode/DeepSeek 可以大量消耗 token 做仓库阅读、搜索和实现；验证命令应聚焦且有界。
-
-## 模型配置
-
-模型解析优先级：
-
-1. `-Model`
-2. `CODEX_OPENCODE_MODEL`
-3. `-ModelProfile`
-4. `CODEX_OPENCODE_MODEL_PROFILE`
-5. `worker.config.json` 的 `defaultModelProfile`
-
-默认配置：
-
-```json
-{
-  "defaultModelProfile": "deepseek-v4-pro",
-  "modelProfiles": {
-    "deepseek-v4-pro": {
-      "model": "deepseek/deepseek-v4-pro"
-    }
-  },
-  "agent": "codex-worker",
-  "runsRoot": ""
-}
 ```
 
 ## 任务单格式
@@ -169,7 +138,7 @@ flowchart LR
 
 ## 安全边界
 
-- 不自动 `git add`、`commit`、`push`。
+- 不自动 `git add/commit/push/reset`。
 - 不自动创建 PR。
 - 不执行发布步骤。
 - `codex-worker` 允许验证命令，但显式禁止 Git 提交/推送/重置、PR、发布、危险删除和 secret 读取类命令。
@@ -182,36 +151,37 @@ flowchart LR
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$HOME\.codex\skills\codex-opencode-deepseek-workflow\scripts\new-ai-task.ps1" `
+  -File "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\scripts\new-ai-task.ps1" `
   -RepoPath "D:\path\to\repo" `
   -Title "实现某个功能"
 ```
 
-后台调用 worker：
+后台调用 worker。脚本现在默认后台运行，`-Background` 只是为了可读性：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$HOME\.codex\skills\codex-opencode-deepseek-workflow\scripts\run-opencode-worker.ps1" `
+  -File "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\scripts\run-opencode-worker.ps1" `
   -RepoPath "D:\path\to\repo" `
   -TaskFile "C:\path\to\AI-DEV-TASK.md" `
   -TaskSlug "feature-name" `
   -Background
 ```
 
-同步调用 worker，仅在你明确想等待完成时使用：
+只有明确想让 Codex 等到 worker 完成时，才使用前台模式：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$HOME\.codex\skills\codex-opencode-deepseek-workflow\scripts\run-opencode-worker.ps1" `
+  -File "$HOME\.codex\skills\Codex-OpenCode-Worker-Workflow\scripts\run-opencode-worker.ps1" `
   -RepoPath "D:\path\to\repo" `
   -TaskFile "C:\path\to\AI-DEV-TASK.md" `
-  -TaskSlug "feature-name"
+  -TaskSlug "feature-name" `
+  -Foreground
 ```
 
 ## 文件结构
 
 ```text
-codex-opencode-deepseek-workflow/
+Codex-OpenCode-Worker-Workflow/
   SKILL.md
   README.md
   index.html

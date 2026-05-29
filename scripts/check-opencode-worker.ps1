@@ -2,8 +2,8 @@
   [Parameter(Mandatory = $true)]
   [string]$RunDir,
 
-  [int]$TailLines = 20,
-  [int]$MaxTailChars = 12000,
+  [int]$TailLines = 8,
+  [int]$MaxTailChars = 3000,
   [switch]$IncludeLogTail,
   [switch]$NoLogTail
 )
@@ -66,7 +66,7 @@ if ($IncludeLogTail -and -not $NoLogTail -and $summary.opencodeLog) {
 
 $stderrTail = @()
 if ($IncludeLogTail -and -not $NoLogTail -and $summary.opencodeStderr) {
-  $stderrTail = Get-FileTail -Path $summary.opencodeStderr -Lines 20 -MaxChars 6000
+  $stderrTail = Get-FileTail -Path $summary.opencodeStderr -Lines 8 -MaxChars 3000
 }
 
 [pscustomobject]@{
